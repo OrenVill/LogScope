@@ -1,42 +1,93 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f5f5f5;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.app-header {
+  background-color: #2c3e50;
+  color: white;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.app-header p {
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.app-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.sidebar {
+  width: 300px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: auto;
+  padding: 1rem;
+}
+
+/* Component placeholder styles */
+.filter-panel,
+.log-table,
+.realtime-toggle {
+  padding: 1rem;
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  background-color: #fafafa;
+}
+
+.filter-panel p,
+.log-table p,
+.realtime-toggle p {
+  color: #666;
+  font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
   }
-  to {
-    transform: rotate(360deg);
+
+  .sidebar {
+    width: 100%;
+    max-height: 200px;
   }
-}
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .app-header {
+    padding: 1rem;
   }
-}
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  .app-header h1 {
+    font-size: 1.4rem;
+  }
 }
