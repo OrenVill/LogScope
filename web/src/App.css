@@ -5,22 +5,17 @@
 }
 
 .app {
-  display: flex;
-  flex-direction: column;
   height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
 }
 
 .app-header {
-  background-color: #2c3e50;
-  color: white;
-  padding: 1.5rem 2rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .app-header h1 {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .app-header p {
@@ -29,65 +24,48 @@
 }
 
 .app-container {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  gap: 1rem;
-  padding: 1rem;
+  min-height: calc(100vh - 120px);
 }
 
 .sidebar {
-  width: 300px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-  overflow-y: auto;
+  min-width: 280px;
+  max-width: 380px;
+  flex-shrink: 0;
 }
 
 .main-content {
   flex: 1;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: auto;
-  padding: 1rem;
+  min-width: 0;
 }
 
 /* Component placeholder styles */
 .filter-panel,
 .log-table,
 .realtime-toggle {
-  padding: 1rem;
-  border: 2px dashed #ccc;
-  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.filter-panel h3,
+.realtime-toggle h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #495057;
   margin-bottom: 1rem;
-  background-color: #fafafa;
 }
 
 .filter-panel p,
 .log-table p,
 .realtime-toggle p {
-  color: #666;
+  color: #6c757d;
   font-style: italic;
+  margin: 0;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .app-container {
-    flex-direction: column;
-  }
+button {
+  transition: all 0.2s ease;
+}
 
-  .sidebar {
-    width: 100%;
-    max-height: 200px;
-  }
-
-  .app-header {
-    padding: 1rem;
-  }
-
-  .app-header h1 {
-    font-size: 1.4rem;
-  }
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
