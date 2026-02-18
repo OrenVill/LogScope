@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" role="img" aria-label="LogScope logo">
+
+  <defs>
+    <style>
+      :root{
+        --ink:#0b1220;
+        --muted:#475569;
+        --panel:#f1f5f9;
+        --panel2:#e2e8f0;
+        --stroke:#cbd5e1;
+
+        --ring1:#06b6d4;
+        --ring2:#7c3aed;
+
+        --ok:#16a34a;
+        --warn:#d97706;
+        --err:#dc2626;
+
+        --beam:rgba(34,197,94,0.12);
+        --shadow:rgba(2,6,23,0.18);
+      }
+
+      @media (prefers-color-scheme: dark){
+        :root{
+          --ink:#e5e7eb;
+          --muted:#94a3b8;
+          --panel:#0f172a;
+          --panel2:#111827;
+          --stroke:#23324a;
+          --beam:rgba(34,197,94,0.18);
+          --shadow:rgba(0,0,0,0.35);
+        }
+      }
+
+      .wordmark{
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      }
+    </style>
+
+    <linearGradient id="lensGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="var(--ring1)"/>
+      <stop offset="100%" stop-color="var(--ring2)"/>
+    </linearGradient>
+
+    <linearGradient id="beamGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="var(--beam)" stop-opacity="0"/>
+      <stop offset="35%" stop-color="var(--beam)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--beam)" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="var(--shadow)"/>
+    </filter>
+  </defs>
+
+  <!-- Icon -->
+  <g transform="translate(70,60)" filter="url(#shadow)">
+    <circle cx="100" cy="100" r="72" fill="var(--panel2)" stroke="url(#lensGrad)" stroke-width="10"/>
+    <circle cx="100" cy="100" r="56" fill="var(--panel)" stroke="var(--stroke)" stroke-width="2"/>
+
+    <line x1="100" y1="46" x2="100" y2="154" stroke="var(--muted)" stroke-width="2"/>
+    <line x1="46" y1="100" x2="154" y2="100" stroke="var(--muted)" stroke-width="2"/>
+    <circle cx="100" cy="100" r="6" fill="url(#lensGrad)"/>
+
+    <g transform="translate(145,145) rotate(45)">
+      <rect width="90" height="18" rx="9" fill="var(--panel2)" stroke="var(--stroke)" stroke-width="2"/>
+    </g>
+  </g>
+
+  <!-- Log lines -->
+  <g transform="translate(290,88)">
+    <rect x="-10" y="68" width="520" height="64" rx="32" fill="url(#beamGrad)"/>
+
+    <circle cx="0" cy="30" r="6" fill="var(--ok)"/>
+    <rect x="18" y="22" width="360" height="16" rx="8" fill="var(--panel2)"/>
+
+    <circle cx="0" cy="80" r="6" fill="var(--warn)"/>
+    <rect x="18" y="72" width="420" height="16" rx="8" fill="var(--panel2)"/>
+
+    <circle cx="0" cy="130" r="6" fill="var(--err)"/>
+    <rect x="18" y="122" width="300" height="16" rx="8" fill="var(--panel2)"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(290,235)">
+    <text class="wordmark" font-size="54" font-weight="800" fill="var(--ink)">
+      Log<tspan fill="url(#lensGrad)">Scope</tspan>
+    </text>
+    <text class="wordmark" y="34" font-size="16" font-weight="600" fill="var(--muted)">
+      precision log inspection
+    </text>
+  </g>
+
+</svg>

@@ -1,0 +1,9 @@
+{
+  "name": "logscope",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LogScope - simple log viewer for web apps",
+  "author": "Oren",
+  "license": "MIT",
+  "workspaces": ["server", "web"]
+}
