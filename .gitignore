@@ -7,8 +7,10 @@ dist/
 build/
 out/
 *.tsbuildinfo
-*/dist/
-*/build/
+server/dist/
+web/dist/
+server/build/
+web/build/
 
 # Environment variables
 .env
@@ -40,11 +42,6 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Package manager files (optional - uncomment if you prefer to commit lock files)
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
 # Runtime
 .cache/
 tmp/
@@ -52,3 +49,6 @@ temp/
 
 # IDE
 .eslintcache
+
+
+server/logs/
