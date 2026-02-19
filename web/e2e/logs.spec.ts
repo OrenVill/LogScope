@@ -7,6 +7,8 @@ test('search + expand lazy-load + accessibility smoke', async ({ page }) => {
   await expect(page.locator('.log-table')).toBeVisible()
 
   // Expand first log row and assert details are visible
+  // Wait for table rows to render (CI can be slower)
+  await page.waitForSelector('tbody tr', { timeout: 10000 })
   const firstRowToggle = page.locator('tbody tr').first().locator('td').first()
   await firstRowToggle.click()
   await expect(page.locator('.log-details')).toBeVisible()
