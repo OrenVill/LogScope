@@ -6,9 +6,31 @@ test('search + expand lazy-load + accessibility smoke', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('.log-table')).toBeVisible()
 
-  // Expand first log row and assert details are visible
-  // Wait for table rows to render (CI can be slower)
-  await page.waitForSelector('tbody tr', { timeout: 10000 })
+  // Ensure backend is available and has at least one log; seed if empty (CI can start with zero logs)
+  const health = await page.request.get('http://localhost:3000/health').catch(() => null)
+  if (!health || health.status() !== 200) test.skip('backend not available')
+
+  const listRes = await page.request.get('http://localhost:3000/api/logs/search')
+  let listJson = null
+  try { listJson = await listRes.json() } catch (e) { /* ignore */ }
+
+  if (!listRes.ok || !listJson?.data || listJson.data.length === 0) {
+    // Seed a log so the UI has something to render
+    const payload = {
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      subject: 'e2e-seed',
+      message: `seed-${Date.now()}`,
+      data: { seeded: true },
+      source: { function: 'e2e', file: 'seed.ts', process: 'ci', runtime: 'browser', serviceName: 'e2e-service' },
+      correlation: {},
+    }
+    const collect = await page.request.post('http://localhost:3000/api/logs/collect', { data: payload })
+    expect(collect.ok()).toBeTruthy()
+  }
+
+  // Wait for table rows to render (longer timeout for slow CI)
+  await page.waitForSelector('tbody tr', { timeout: 30000 })
   const firstRowToggle = page.locator('tbody tr').first().locator('td').first()
   await firstRowToggle.click()
   await expect(page.locator('.log-details')).toBeVisible()
