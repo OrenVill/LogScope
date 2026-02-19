@@ -12,6 +12,10 @@ test('search + expand lazy-load + accessibility smoke', async ({ page }) => {
   await expect(page.locator('.log-details')).toBeVisible()
 
   const accessibilityScan = await new AxeBuilder({ page }).analyze()
+  if (accessibilityScan.violations.length > 0) {
+    // log violations for debugging and attach to Playwright report
+    console.log('Axe violations:', JSON.stringify(accessibilityScan.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.map(n => ({ target: n.target })) })), null, 2))
+  }
   expect(accessibilityScan.violations.length).toBe(0)
 })
 
@@ -74,6 +78,14 @@ test('correlation filter returns correlated logs', async ({ page }) => {
     }
     const res = await page.request.post('http://localhost:3000/api/logs/collect', { data: payload })
     expect(res.ok()).toBeTruthy()
+  }
+
+  // Ensure we're in Historical mode (filter panel disabled when Real-time is on)
+  const rtToggle = page.locator('#rtToggle')
+  if (await rtToggle.isVisible() && await rtToggle.isChecked()) {
+    await rtToggle.click()
+    // wait for inputs to become enabled
+    await page.waitForSelector('input[placeholder="Correlation ID"]:not([disabled])')
   }
 
   // Use filter panel to search by requestId

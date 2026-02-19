@@ -194,13 +194,14 @@ function App() {
       <header className="app-header bg-black text-white py-2 px-4 shadow">
         <div className="container-fluid d-flex justify-content-between align-items-center">
           <div className="app-logo-container">
+            <h1 className="visually-hidden">LogScope</h1>
             <img src="/logo.svg" alt="LogScope Logo" className="app-logo" />
           </div>
           
           <div className="d-flex flex-column gap-2">
             {hasCritical && (
               <div className="mb-0 d-flex align-items-center gap-3" style={{
-                backgroundColor: '#ff0000',
+                backgroundColor: '#a80000',
                 color: 'white',
                 padding: '12px 16px',
                 borderRadius: '4px',
@@ -262,7 +263,7 @@ function App() {
       </header>
 
       <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3">
-        <aside className="sidebar bg-body rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
+        <aside tabIndex={0} className="sidebar bg-body rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
           <FilterPanel onSearch={loadLogs} isRealTime={isRealTime} />
         </aside>
 

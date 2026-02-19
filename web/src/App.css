@@ -96,6 +96,8 @@ button:hover {
 .app-header {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  /* Compact header to reduce visual height */
+  padding: 0.35rem 1rem;
 }
 
 .app-header h1 {
@@ -115,12 +117,13 @@ button:hover {
 }
 
 .app-logo {
-  height: 160px;
+  height: 40px; /* compact logo to fit navbar */
   width: auto;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-  animation: logo-pulse 3s ease-in-out infinite;
-  transition: all 0.3s ease;
-  padding-bottom: 10px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.22));
+  animation: logo-pulse 4s ease-in-out infinite;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  padding-bottom: 0;
+  vertical-align: middle;
 }
 
 .app-logo:hover {
@@ -162,15 +165,15 @@ button:hover {
 }
 
 .btn-outline-primary {
-  color: #007bff;
-  border: 2px solid #007bff;
+  color: #0b5ed7; /* stronger contrast for small button text */
+  border: 2px solid #0b5ed7;
   font-weight: 600;
 }
 
 .btn-outline-primary:hover {
-  background-color: rgba(0, 123, 255, 0.1);
+  background-color: rgba(11, 94, 215, 0.12);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(11, 94, 215, 0.22);
 }
 
 /* Dark Mode Styles */

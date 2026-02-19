@@ -8,11 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest",
-    "test:unit": "vitest",
-    "test:coverage": "vitest --coverage",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui --api 5123",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test --headed"
   },
   "dependencies": {
     "bootstrap": "^5.3.8",

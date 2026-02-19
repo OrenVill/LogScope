@@ -51,7 +51,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ logs, onLevelFilter, cur
           title={isExpanded ? 'Collapse stats' : 'Expand stats'}
         >
           <span className="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
-          <h3 className="stats-title">📊 Log Statistics</h3>
+          <h2 className="stats-title">📊 Log Statistics</h2>
         </button>
         <div className="stats-total">
           <span className="stats-label">Total:</span>

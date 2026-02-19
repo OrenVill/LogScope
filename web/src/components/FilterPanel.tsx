@@ -19,6 +19,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
   const [timeTo, setTimeTo] = useState("");
   const [requestId, setRequestId] = useState("");
   const [sessionId, setSessionId] = useState("");
+  // element ids for accessibility
+  const subjectId = "filter-subject";
+  const textId = "filter-text";
+  const timeFromId = "filter-timefrom";
+  const timeToId = "filter-toto";
+  const requestIdId = "filter-requestId";
+  const sessionIdId = "filter-sessionId";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +55,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
 
   return (
     <div className="filter-panel">
-      <h3 className="mb-3">🔍 Search & Filter</h3>
+      <h2 className="mb-3">🔍 Search & Filter</h2>
       {isRealTime && (
         <div className="alert alert-info alert-sm py-2 px-3 mb-3" role="alert">
           <small><strong>Real-time mode:</strong> Live logs streaming</small>
@@ -57,10 +64,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
 
       <form onSubmit={handleSearch}>
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor={subjectId} className="form-label small mb-2">
             <strong>Subject</strong>
           </label>
           <input
+            id={subjectId}
             type="text"
             className="form-control form-control-sm"
             placeholder="e.g., auth, database"
@@ -91,10 +99,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
         </div>
 
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor={textId} className="form-label small mb-2">
             <strong>Search Text</strong>
           </label>
           <input
+            id={textId}
             type="text"
             className="form-control form-control-sm"
             placeholder="Search in content"
@@ -105,10 +114,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
         </div>
 
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor={timeFromId} className="form-label small mb-2">
             <strong>Time From</strong>
           </label>
           <input
+            id={timeFromId}
             type="datetime-local"
             className="form-control form-control-sm"
             value={timeFrom}
@@ -118,10 +128,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
         </div>
 
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor={timeToId} className="form-label small mb-2">
             <strong>Time To</strong>
           </label>
           <input
+            id={timeToId}
             type="datetime-local"
             className="form-control form-control-sm"
             value={timeTo}
@@ -131,10 +142,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
         </div>
 
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor={requestIdId} className="form-label small mb-2">
             <strong>Request ID</strong>
           </label>
           <input
+            id={requestIdId}
             type="text"
             className="form-control form-control-sm"
             placeholder="Correlation ID"
@@ -145,10 +157,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
         </div>
 
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor={sessionIdId} className="form-label small mb-2">
             <strong>Session ID</strong>
           </label>
           <input
+            id={sessionIdId}
             type="text"
             className="form-control form-control-sm"
             placeholder="Session ID"

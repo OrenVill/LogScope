@@ -229,7 +229,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                     <small className="text-muted">
                       {log.source.runtime === "node" ? "🖥️ Backend" : "🌐 Frontend"}
                       <br />
-                      <code className="small">{log.source.serviceName}</code>
+                      <code className="small text-body">{log.source.serviceName}</code>
                     </small>
                   </td>
                 </tr>
@@ -251,7 +251,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                               <>
                                 <div className="log-details-section">
                                   <div className="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 className="text-uppercase small fw-bold mb-0">📝 Message</h6>
+                                    <h3 className="text-uppercase small fw-bold mb-0">📝 Message</h3>
                                   </div>
                                   <p className="mb-3">{displayLog.message || <em className="text-muted">(no message)</em>}</p>
                                 </div>
@@ -259,7 +259,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                                 {isFullEntry(displayLog) && displayLog.data ? (
                                   <div className="log-details-section">
                                     <div className="d-flex justify-content-between align-items-center mb-2">
-                                      <h6 className="text-uppercase small fw-bold mb-0">📊 Data</h6>
+                                      <h3 className="text-uppercase small fw-bold mb-0">📊 Data</h3>
                                       <button 
                                         className="btn btn-sm btn-outline-secondary py-0 px-2"
                                         onClick={() => copyToClipboard(formatContent(displayLog.data))}
@@ -275,7 +275,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                                 {isFullEntry(displayLog) ? (
                                   <div className="row">
                                     <div className="col-md-6">
-                                      <h6 className="text-uppercase small fw-bold mb-2">📍 Source Information</h6>
+                                      <h3 className="text-uppercase small fw-bold mb-0">📍 Source Information</h3>
                                       <div className="log-metadata">
                                         <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
                                         <div><strong>File:</strong> <code>{displayLog.source.file}</code></div>
@@ -286,7 +286,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                                     </div>
 
                                     <div className="col-md-6">
-                                      <h6 className="text-uppercase small fw-bold mb-2">🔗 Correlation</h6>
+                                      <h3 className="text-uppercase small fw-bold mb-2">🔗 Correlation</h3>
                                       <div className="log-metadata">
                                         {displayLog.correlation.requestId && (
                                           <div><strong>Request ID:</strong> <code>{displayLog.correlation.requestId}</code></div>
@@ -310,7 +310,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                                 )}
 
                                 <div className="mt-3">
-                                  <h6 className="text-uppercase small fw-bold mb-2">🆔 Event ID</h6>
+                                  <h3 className="text-uppercase small fw-bold mb-2">🆔 Event ID</h3>
                                   <code className="d-inline-block p-2 bg-light rounded small">{log.eventId}</code>
                                 </div>
                               </>
