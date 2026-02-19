@@ -169,3 +169,50 @@
     font-size: 1.1rem;
   }
 }
+
+/* Dark Mode */
+[data-bs-theme="dark"] .stats-panel {
+  background: linear-gradient(135deg, #333 0%, #2a2a2a 100%);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .stats-toggle-btn:hover {
+  background-color: rgba(100, 100, 100, 0.2);
+}
+
+[data-bs-theme="dark"] .stats-title {
+  color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .stats-label {
+  color: #b0b0b0;
+}
+
+[data-bs-theme="dark"] .stats-count {
+  background-color: rgba(0, 0, 0, 0.3);
+  color: #7bbfff;
+}
+
+[data-bs-theme="dark"] .stat-card {
+  background-color: #2a2a2a;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .stat-label {
+  color: #b0b0b0;
+}
+
+[data-bs-theme="dark"] .stat-value {
+  color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .stats-alert {
+  background-color: #3d3a1a;
+  border-color: #7a7a2a;
+  color: #d4c454;
+}

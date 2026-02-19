@@ -17,6 +17,10 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<ErrorState | null>(null)
   const [isRealTime, setIsRealTime] = useState(true)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('logscope-dark-mode')
+    return saved ? JSON.parse(saved) : false
+  })
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
@@ -118,6 +122,15 @@ function App() {
     }
   }
 
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const newValue = !prev
+      localStorage.setItem('logscope-dark-mode', JSON.stringify(newValue))
+      return newValue
+    })
+  }
+
   // Get error alert class based on error code
   const getErrorAlertClass = () => {
     if (error?.isRateLimit) return 'alert alert-warning'
@@ -140,14 +153,23 @@ function App() {
   }, [])
 
   return (
-    <div className="app d-flex flex-column h-100">
-      <header className="app-header bg-dark text-white py-2 px-4 shadow">
+    <div className="app d-flex flex-column h-100" data-bs-theme={isDarkMode ? 'dark' : 'light'}>
+      <header className="app-header bg-black text-white py-2 px-4 shadow">
         <div className="container-fluid d-flex justify-content-start align-items-center">
           <div className="app-logo-container">
             <img src="/logo.svg" alt="LogScope Logo" className="app-logo" />
           </div>
           
           <div className="ms-auto d-flex align-items-center gap-3">
+            <button
+              className="btn btn-sm btn-outline-light"
+              onClick={toggleDarkMode}
+              title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              style={{ fontSize: '1.2rem', padding: '4px 8px' }}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
+            </button>
+
             <div className="d-flex align-items-center gap-2" style={{ minWidth: '180px' }}>
               <div className="form-check form-switch mb-0">
                 <input
@@ -203,11 +225,11 @@ function App() {
       </header>
 
       <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3">
-        <aside className="sidebar bg-white rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
+        <aside className="sidebar bg-body rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
           <FilterPanel onSearch={loadLogs} isRealTime={isRealTime} />
         </aside>
 
-        <main className="main-content bg-white rounded shadow-sm flex-grow-1 overflow-auto p-4">
+        <main className="main-content bg-body rounded shadow-sm flex-grow-1 overflow-auto p-4">
           {error && (
             <div className={`${getErrorAlertClass()} alert-dismissible fade show mb-3`} role="alert">
               <strong>{error.isRateLimit ? 'Rate Limit:' : 'Error:'}</strong> {getErrorMessage()}

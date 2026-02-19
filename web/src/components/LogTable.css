@@ -362,3 +362,49 @@
 .table thead th:hover {
   background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
 }
+
+/* Dark Mode */
+[data-bs-theme="dark"] .table tbody td code {
+  background-color: #333;
+  color: #ff6b9d;
+}
+
+[data-bs-theme="dark"] .table tbody .fw-bold {
+  color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .btn-outline-secondary {
+  border-color: #777;
+  color: #b0b0b0;
+}
+
+[data-bs-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+  color: white;
+}
+
+[data-bs-theme="dark"] .log-table h2 {
+  color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .log-table > div > p {
+  color: #a0a0a0;
+}
+
+[data-bs-theme="dark"] .log-table .badge {
+  background-color: #444;
+  color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .log-content-display::-webkit-scrollbar-track {
+  background: #333;
+}
+
+[data-bs-theme="dark"] .log-content-display::-webkit-scrollbar-thumb {
+  background: #666;
+}
+
+[data-bs-theme="dark"] .log-content-display::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
