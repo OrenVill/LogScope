@@ -71,10 +71,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
         </div>
 
         <div className="mb-3">
-          <label className="form-label small mb-2">
+          <label htmlFor="filter-level" className="form-label small mb-2">
             <strong>Log Level</strong>
           </label>
           <select
+            id="filter-level"
             className="form-select form-select-sm"
             value={level}
             onChange={(e) => setLevel(e.target.value as LogLevel | "")}

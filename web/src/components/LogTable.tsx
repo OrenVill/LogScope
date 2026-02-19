@@ -52,34 +52,38 @@ export const LogTable: React.FC<LogTableProps> = ({
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
 
   const toggleExpanded = async (log: Log) => {
+    const wasExpanded = expandedRows.has(log.eventId);
     const newExpanded = new Set(expandedRows);
-    
-    if (newExpanded.has(log.eventId)) {
+
+    if (wasExpanded) {
       newExpanded.delete(log.eventId);
-    } else {
-      newExpanded.add(log.eventId);
-      
-      // If this is a summary and we don't have full details, fetch them
-      if (!isFullEntry(log) && !fullLogs.has(log.eventId)) {
-        setLoadingDetails(prev => new Set([...prev, log.eventId]));
-        try {
-          const response = await logsApi.getLogById(log.eventId);
-          if (response.success && response.data) {
-            setFullLogs(prev => new Map([...prev, [log.eventId, response.data as LogEntry]]));
-          }
-        } catch (error) {
-          console.error("Failed to fetch log details:", error);
-        } finally {
-          setLoadingDetails(prev => {
-            const updated = new Set(prev);
-            updated.delete(log.eventId);
-            return updated;
-          });
+      // collapse immediately
+      setExpandedRows(newExpanded);
+      return;
+    }
+
+    // expand immediately so UI can show loading state while we fetch
+    newExpanded.add(log.eventId);
+    setExpandedRows(newExpanded);
+
+    // If this is a summary and we don't have full details, fetch them
+    if (!isFullEntry(log) && !fullLogs.has(log.eventId)) {
+      setLoadingDetails(prev => new Set([...prev, log.eventId]));
+      try {
+        const response = await logsApi.getLogById(log.eventId);
+        if (response.success && response.data) {
+          setFullLogs(prev => new Map([...prev, [log.eventId, response.data as LogEntry]]));
         }
+      } catch (error) {
+        console.error("Failed to fetch log details:", error);
+      } finally {
+        setLoadingDetails(prev => {
+          const updated = new Set(prev);
+          updated.delete(log.eventId);
+          return updated;
+        });
       }
     }
-    
-    setExpandedRows(newExpanded);
   };
 
   const getDisplayLog = (log: Log): LogEntry | LogSummary => {
