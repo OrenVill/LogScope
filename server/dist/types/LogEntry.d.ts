@@ -21,4 +21,19 @@ export interface LogEntry {
     source: LogSource;
     correlation: Correlation;
 }
+/**
+ * Lightweight log summary for initial list views
+ * Contains only essential information to minimize data transfer
+ */
+export interface LogSummary {
+    eventId: string;
+    timestamp: string;
+    level: LogLevel;
+    subject: string;
+    message: string;
+    source: {
+        runtime: "node" | "browser";
+        serviceName: string;
+    };
+}
 //# sourceMappingURL=LogEntry.d.ts.map

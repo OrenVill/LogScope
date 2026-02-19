@@ -1,4 +1,4 @@
-export type { LogEntry } from "./log";
+export type { LogEntry, LogSummary } from "./log";
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "critical" | "success";
 

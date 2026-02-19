@@ -1,6 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createQueryIndex = void 0;
+/**
+ * Convert a full LogEntry to a lightweight LogSummary
+ */
+const toLogSummary = (log) => ({
+    eventId: log.eventId,
+    timestamp: log.timestamp,
+    level: log.level,
+    subject: log.subject,
+    message: log.message,
+    source: {
+        runtime: log.source.runtime,
+        serviceName: log.source.serviceName,
+    },
+});
 const createQueryIndex = (maxSize = 10000) => {
     let index = new Map();
     let allLogs = [];
@@ -73,9 +87,13 @@ const createQueryIndex = (maxSize = 10000) => {
             // Apply pagination
             const offset = filters.offset || 0;
             const limit = filters.limit || 100;
-            results = results.slice(offset, offset + limit);
+            const paginatedResults = results.slice(offset, offset + limit);
+            // Convert to summaries if lightweight mode is enabled
+            const finalResults = filters.lightweight
+                ? paginatedResults.map(toLogSummary)
+                : paginatedResults;
             return {
-                logs: results,
+                logs: finalResults,
                 total,
             };
         },

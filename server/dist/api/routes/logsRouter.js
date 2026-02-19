@@ -71,13 +71,15 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
      *   - sessionId: correlation session ID
      *   - limit: number of results per page (default: 100, max: 1000)
      *   - offset: number of results to skip (default: 0)
+     *   - lightweight: return summaries only (true/false, default: true)
      */
     router.get("/search", validation_1.validateSearchParams, async (req, res) => {
         try {
-            const { timeFrom, timeTo, level, subject, text, requestId, sessionId, limit = 100, offset = 0, } = req.query;
+            const { timeFrom, timeTo, level, subject, text, requestId, sessionId, limit = 100, offset = 0, lightweight = "true", } = req.query;
             // Validate pagination parameters
             const parsedLimit = Math.min(parseInt(limit) || 100, 1000);
             const parsedOffset = Math.max(parseInt(offset) || 0, 0);
+            const isLightweight = lightweight !== "false";
             // Execute query
             const result = await queryIndex.query({
                 timeFrom: timeFrom,
@@ -89,6 +91,7 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
                 sessionId: sessionId,
                 limit: parsedLimit,
                 offset: parsedOffset,
+                lightweight: isLightweight,
             });
             res.json({
                 success: true,
@@ -103,6 +106,35 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
             res.status(500).json({
                 success: false,
                 error: "Failed to search logs",
+                errorCode: "SERVER_ERROR",
+            });
+        }
+    });
+    /**
+     * GET /api/logs/:eventId
+     * Get full log details by event ID
+     */
+    router.get("/:eventId", async (req, res) => {
+        try {
+            const { eventId } = req.params;
+            const log = queryIndex.getById(eventId);
+            if (!log) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Log not found",
+                    errorCode: "NOT_FOUND",
+                });
+            }
+            res.json({
+                success: true,
+                data: log,
+            });
+        }
+        catch (error) {
+            console.error("Error fetching log:", error);
+            res.status(500).json({
+                success: false,
+                error: "Failed to fetch log",
                 errorCode: "SERVER_ERROR",
             });
         }

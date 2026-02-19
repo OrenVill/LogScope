@@ -1,4 +1,4 @@
-import { LogEntry } from "../types";
+import { LogEntry, LogSummary } from "../types";
 
 /**
  * In-memory query index for efficient log searches.
@@ -23,8 +23,9 @@ export interface IQueryIndex {
     sessionId?: string;
     limit?: number;
     offset?: number;
+    lightweight?: boolean;
   }): Promise<{
-    logs: LogEntry[];
+    logs: (LogEntry | LogSummary)[];
     total: number;
   }>;
 
@@ -38,6 +39,21 @@ export interface IQueryIndex {
    */
   getById(eventId: string): LogEntry | null;
 }
+
+/**
+ * Convert a full LogEntry to a lightweight LogSummary
+ */
+const toLogSummary = (log: LogEntry): LogSummary => ({
+  eventId: log.eventId,
+  timestamp: log.timestamp,
+  level: log.level,
+  subject: log.subject,
+  message: log.message,
+  source: {
+    runtime: log.source.runtime,
+    serviceName: log.source.serviceName,
+  },
+});
 
 export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
   let index: Map<string, LogEntry> = new Map();
@@ -138,10 +154,15 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
       // Apply pagination
       const offset = filters.offset || 0;
       const limit = filters.limit || 100;
-      results = results.slice(offset, offset + limit);
+      const paginatedResults = results.slice(offset, offset + limit);
+
+      // Convert to summaries if lightweight mode is enabled
+      const finalResults = filters.lightweight
+        ? paginatedResults.map(toLogSummary)
+        : paginatedResults;
 
       return {
-        logs: results,
+        logs: finalResults,
         total,
       };
     },

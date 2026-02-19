@@ -86,15 +86,30 @@ function App() {
 
   // Connect to WebSocket
   const connectWebSocket = (filters?: { level?: string; subject?: string }) => {
-    if (wsRef.current) {
-      wsRef.current.close()
+    // If a socket is already open or connecting, don't recreate it (avoids StrictMode double-invoke noise)
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return
     }
+
+    // Clean up any stale socket references that are CLOSED/ERROR
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CLOSING || wsRef.current.readyState === WebSocket.CLOSED)) {
+      try { wsRef.current.close() } catch (e) {}
+      wsRef.current = null
+    }
+
+    // Suppress benign errors that can occur when React StrictMode mounts/unmounts quickly in dev
+    let ignoreInitialErrors = true
 
     wsRef.current = logsApi.connectWebSocket(
       (log: LogEntry) => {
         setLogs((prev) => [log, ...prev.slice(0, 99)])
       },
       (error: Error) => {
+        // If we're still in the initial connect window and socket isn't open yet, ignore the error
+        if (ignoreInitialErrors && wsRef.current && wsRef.current.readyState !== WebSocket.OPEN) {
+          return
+        }
+
         setError({
           message: `WebSocket error: ${error.message}`,
           code: 'WEBSOCKET_ERROR',
@@ -102,14 +117,36 @@ function App() {
       },
       filters
     )
+
+    // Clear the ignore flag once the socket opens or after a short timeout
+    if (wsRef.current) {
+      wsRef.current.addEventListener('open', () => { ignoreInitialErrors = false })
+      setTimeout(() => { ignoreInitialErrors = false }, 2000)
+    }
   }
 
   // Disconnect WebSocket
   const disconnectWebSocket = () => {
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
+    if (!wsRef.current) return
+
+    const cur = wsRef.current
+
+    try {
+      // Only call close when the socket is open; avoid closing a CONNECTING socket (prevents the dev-only browser message)
+      if (cur.readyState === WebSocket.OPEN) {
+        cur.close()
+      } else {
+        // Remove our handlers so a late error/close won't propagate to the app
+        try { cur.onopen = null } catch (e) {}
+        try { cur.onmessage = null } catch (e) {}
+        try { cur.onerror = null } catch (e) {}
+        try { cur.onclose = null } catch (e) {}
+      }
+    } catch (e) {
+      /* ignore */
     }
+
+    wsRef.current = null
   }
 
   // Toggle real-time mode
@@ -124,7 +161,7 @@ function App() {
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setIsDarkMode(prev => {
+    setIsDarkMode((prev: boolean) => {
       const newValue = !prev
       localStorage.setItem('logscope-dark-mode', JSON.stringify(newValue))
       return newValue

@@ -68,16 +68,24 @@ export class LogsApiClient {
   baseUrl: string;
 
   constructor(baseUrl?: string) {
-    // Use provided baseUrl or localhost for development
-    this.baseUrl = baseUrl || "http://localhost:3000";
+    // Use provided baseUrl or auto-detect backend
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else {
+      // Auto-detect: use same host but port 3000
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      this.baseUrl = `${protocol}//${hostname}:3000`;
+    }
   }
 
   /**
-   * Search logs with filters and pagination
+   * Search logs with filters and pagination (returns summaries by default for better performance)
    */
   async searchLogs(
     filters: SearchFilters,
-    pagination?: Pagination
+    pagination?: Pagination,
+    lightweight: boolean = true
   ): Promise<ApiResponse<LogEntry[]>> {
     const params = new URLSearchParams();
 
@@ -90,6 +98,7 @@ export class LogsApiClient {
     if (filters.sessionId) params.append("sessionId", filters.sessionId);
     if (pagination?.limit) params.append("limit", pagination.limit.toString());
     if (pagination?.offset) params.append("offset", pagination.offset.toString());
+    params.append("lightweight", lightweight.toString());
 
     try {
       const response = await fetchWithRetry(`${this.baseUrl}/api/logs/search?${params.toString()}`);

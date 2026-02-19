@@ -1,4 +1,4 @@
-import { LogEntry } from "../types";
+import { LogEntry, LogSummary } from "../types";
 /**
  * In-memory query index for efficient log searches.
  */
@@ -20,8 +20,9 @@ export interface IQueryIndex {
         sessionId?: string;
         limit?: number;
         offset?: number;
+        lightweight?: boolean;
     }): Promise<{
-        logs: LogEntry[];
+        logs: (LogEntry | LogSummary)[];
         total: number;
     }>;
     /**
