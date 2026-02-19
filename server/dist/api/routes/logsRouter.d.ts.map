@@ -1,0 +1,1 @@
+{"version":3,"file":"logsRouter.d.ts","sourceRoot":"","sources":["../../../src/api/routes/logsRouter.ts"],"names":[],"mappings":"AAGA,OAAO,EAAE,YAAY,EAAE,MAAM,2BAA2B,CAAC;AACzD,OAAO,EAAE,WAAW,EAAE,MAAM,eAAe,CAAC;AAC5C,OAAO,EAAE,WAAW,EAAE,MAAM,mBAAmB,CAAC;AAGhD,eAAO,MAAM,gBAAgB,GAC3B,SAAS,YAAY,EACrB,YAAY,WAAW,EACvB,WAAW,WAAW,+CAsQvB,CAAC"}
