@@ -103,15 +103,18 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
         );
       }
 
-      // Filter by text in content
+      // Filter by text in message or data
       if (filters.text) {
         const searchText = filters.text.toLowerCase();
         results = results.filter((log) => {
-          const content =
-            typeof log.content === "string"
-              ? log.content
-              : JSON.stringify(log.content);
-          return content.toLowerCase().includes(searchText);
+          const messageMatch = log.message.toLowerCase().includes(searchText);
+          const dataStr = log.data
+            ? typeof log.data === "string"
+              ? log.data
+              : JSON.stringify(log.data)
+            : "";
+          const dataMatch = dataStr.toLowerCase().includes(searchText);
+          return messageMatch || dataMatch;
         });
       }
 

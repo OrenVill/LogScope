@@ -44,15 +44,12 @@ export const rateLimitMiddleware = (
   next();
 };
 
-/**
- * Input validation for log collection endpoint
- */
 export const validateLogEntry = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { timestamp, level, subject, source } = req.body;
+  const { timestamp, level, subject, message, source } = req.body;
 
   // Validate timestamp format (ISO 8601)
   if (!timestamp || typeof timestamp !== "string") {
@@ -98,6 +95,23 @@ export const validateLogEntry = (
     });
   }
 
+  // Validate message (required, must be a string)
+  if (!message || typeof message !== "string") {
+    return res.status(400).json({
+      success: false,
+      error: "Message is required and must be a string.",
+      errorCode: "INVALID_MESSAGE",
+    });
+  }
+
+  if (message.length > 1024) {
+    return res.status(400).json({
+      success: false,
+      error: "Message cannot exceed 1024 characters.",
+      errorCode: "MESSAGE_TOO_LONG",
+    });
+  }
+
   // Validate source
   if (!source || typeof source !== "object") {
     return res.status(400).json({
@@ -116,13 +130,13 @@ export const validateLogEntry = (
     });
   }
 
-  // Validate content size (log content should not exceed 10KB)
-  const contentStr = JSON.stringify(req.body.content || "");
-  if (contentStr.length > 10240) {
+  // Validate data size if provided (should not exceed 10KB)
+  const dataStr = JSON.stringify(req.body.data || "");
+  if (dataStr.length > 10240) {
     return res.status(413).json({
       success: false,
-      error: "Log content exceeds maximum size of 10KB.",
-      errorCode: "CONTENT_TOO_LARGE",
+      error: "Log data exceeds maximum size of 10KB.",
+      errorCode: "DATA_TOO_LARGE",
     });
   }
 

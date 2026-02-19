@@ -269,6 +269,8 @@ export class LogsApiClient {
               1000 * Math.pow(1.5, reconnectAttempts - 1),
               30000
             );
+            // Clear any existing timeout before setting a new one
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
             reconnectTimeout = setTimeout(() => {
               console.log(`Reconnecting WebSocket (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
               createConnection();

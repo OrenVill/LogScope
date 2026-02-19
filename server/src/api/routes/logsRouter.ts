@@ -23,7 +23,8 @@ export const createLogsRouter = (
         timestamp,
         level,
         subject,
-        content,
+        message,
+        data,
         source,
         correlation,
       } = req.body;
@@ -37,7 +38,8 @@ export const createLogsRouter = (
         timestamp,
         level,
         subject,
-        content: content || "",
+        message: message || "",
+        data: data,
         source: {
           function: source.function || "unknown",
           file: source.file || "unknown",

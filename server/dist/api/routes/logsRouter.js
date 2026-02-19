@@ -12,7 +12,7 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
      */
     router.post("/collect", validation_1.rateLimitMiddleware, validation_1.validateLogEntry, async (req, res) => {
         try {
-            const { timestamp, level, subject, content, source, correlation, } = req.body;
+            const { timestamp, level, subject, message, data, source, correlation, } = req.body;
             // Generate event ID on server
             const eventId = (0, uuid_1.v4)();
             // Create log entry
@@ -21,7 +21,8 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
                 timestamp,
                 level,
                 subject,
-                content: content || "",
+                message: message || "",
+                data: data,
                 source: {
                     function: source.function || "unknown",
                     file: source.file || "unknown",

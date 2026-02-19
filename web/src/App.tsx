@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { FilterPanel } from './components/FilterPanel'
 import { LogTable } from './components/LogTable'
-import { RealTimeToggle } from './components/RealTimeToggle'
+import { StatsPanel } from './components/StatsPanel'
 import { logsApi } from './api/logsService'
-import type { LogEntry, SearchFilters } from './types/api'
+import type { LogEntry, LogLevel, SearchFilters } from './types/api'
 
 interface ErrorState {
   message: string
@@ -16,9 +16,10 @@ function App() {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<ErrorState | null>(null)
-  const [isRealTime, setIsRealTime] = useState(false)
+  const [isRealTime, setIsRealTime] = useState(true)
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
+  const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
@@ -54,19 +55,29 @@ function App() {
     loadLogs()
   }, [])
 
+  // Auto-connect WebSocket if real-time mode is enabled
+  useEffect(() => {
+    if (isRealTime) {
+      connectWebSocket()
+    } else {
+      disconnectWebSocket()
+    }
+  }, [isRealTime])
+
   // Check for critical logs and issues
   useEffect(() => {
     const hasCriticalLog = logs.some(log => log.level === 'critical')
     setHasCritical(hasCriticalLog)
     
-    const hasIssues = logs.some(log => ['error', 'warn', 'critical'].includes(log.level))
+    const hasIssues = logs.some(log => (['error', 'warn', 'critical'] as LogLevel[]).includes(log.level))
     setHasNoIssues(!hasIssues && logs.length > 0)
   }, [logs])
 
-  // Filter logs by runtime
+  // Filter logs by runtime and level
   const filteredLogs = logs.filter(log => {
-    if (runtime === 'all') return true
-    return log.source.runtime === (runtime === 'backend' ? 'node' : 'browser')
+    const runtimeMatch = runtime === 'all' || log.source.runtime === (runtime === 'backend' ? 'node' : 'browser')
+    const levelMatch = levelFilter === 'all' || log.level === levelFilter
+    return runtimeMatch && levelMatch
   })
 
   // Connect to WebSocket
@@ -130,45 +141,63 @@ function App() {
 
   return (
     <div className="app d-flex flex-column h-100">
-      <header className="app-header bg-dark text-white py-4 px-4 shadow-sm">
-        <div className="container-fluid d-flex justify-content-between align-items-start">
-          <div>
-            <h1 className="mb-2 display-6">LogScope</h1>
-            <p className="text-white-50 mb-0">Structured log collection and query service</p>
+      <header className="app-header bg-dark text-white py-2 px-4 shadow">
+        <div className="container-fluid d-flex justify-content-start align-items-center">
+          <div className="app-logo-container">
+            <img src="/logo.svg" alt="LogScope Logo" className="app-logo" />
           </div>
-          <div className="d-flex flex-column gap-2">
-            {hasCritical && (
-              <div className="mb-0 d-flex align-items-center gap-3" style={{
-                backgroundColor: '#ff0000',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '4px',
-                animation: 'pulse-alert 0.8s infinite',
-                fontWeight: 600
-              }}>
-                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🚨</div>
-                <div>
-                  <strong style={{ fontSize: '1.1rem' }}>CRITICAL ALERT</strong><br />
-                  <small>Critical logs detected in the system</small>
-                </div>
+          
+          <div className="ms-auto d-flex align-items-center gap-3">
+            <div className="d-flex align-items-center gap-2" style={{ minWidth: '180px' }}>
+              <div className="form-check form-switch mb-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="rtToggle"
+                  checked={isRealTime}
+                  onChange={(e) => toggleRealTime(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <label className="form-check-label" htmlFor="rtToggle" style={{ cursor: 'pointer', marginBottom: 0, fontSize: '0.9rem' }}>
+                  {isRealTime ? '🟢 Live' : '⚪ Historical'}
+                </label>
               </div>
-            )}
-            {hasNoIssues && (
-              <div className="mb-0 d-flex align-items-center gap-3" style={{
-                backgroundColor: '#28a745',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '4px',
-                animation: 'pulse-success 1.2s infinite',
-                fontWeight: 600
-              }}>
-                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>✅</div>
-                <div>
-                  <strong style={{ fontSize: '1.1rem' }}>ALL SYSTEMS OPERATIONAL</strong><br />
-                  <small>No errors, warnings, or critical logs</small>
+            </div>
+
+            <div className="d-flex flex-column gap-2">
+              {hasCritical && (
+                <div className="mb-0 d-flex align-items-center gap-3" style={{
+                  backgroundColor: '#ff0000',
+                  color: 'white',
+                  padding: '12px 16px',
+                  borderRadius: '4px',
+                  animation: 'pulse-alert 0.8s infinite',
+                  fontWeight: 600
+                }}>
+                  <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🚨</div>
+                  <div>
+                    <strong style={{ fontSize: '1.1rem' }}>CRITICAL ALERT</strong><br />
+                    <small>Critical logs detected in the system</small>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+              {hasNoIssues && (
+                <div className="mb-0 d-flex align-items-center gap-3" style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  padding: '12px 16px',
+                  borderRadius: '4px',
+                  animation: 'pulse-success 1.2s infinite',
+                  fontWeight: 600
+                }}>
+                  <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>✅</div>
+                  <div>
+                    <strong style={{ fontSize: '1.1rem' }}>ALL SYSTEMS OPERATIONAL</strong><br />
+                    <small>No errors, warnings, or critical logs</small>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -176,8 +205,6 @@ function App() {
       <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3">
         <aside className="sidebar bg-white rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
           <FilterPanel onSearch={loadLogs} isRealTime={isRealTime} />
-          <hr className="my-4" />
-          <RealTimeToggle isEnabled={isRealTime} onToggle={toggleRealTime} />
         </aside>
 
         <main className="main-content bg-white rounded shadow-sm flex-grow-1 overflow-auto p-4">
@@ -187,6 +214,8 @@ function App() {
               <button type="button" className="btn-close" onClick={() => setError(null)}></button>
             </div>
           )}
+
+          <StatsPanel logs={logs} onLevelFilter={setLevelFilter} currentLevel={levelFilter} />
           
           <div className="mb-4 d-flex gap-2">
             <button 

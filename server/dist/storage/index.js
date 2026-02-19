@@ -46,14 +46,18 @@ const createQueryIndex = (maxSize = 10000) => {
             if (filters.subject) {
                 results = results.filter((log) => log.subject.toLowerCase().includes(filters.subject.toLowerCase()));
             }
-            // Filter by text in content
+            // Filter by text in message or data
             if (filters.text) {
                 const searchText = filters.text.toLowerCase();
                 results = results.filter((log) => {
-                    const content = typeof log.content === "string"
-                        ? log.content
-                        : JSON.stringify(log.content);
-                    return content.toLowerCase().includes(searchText);
+                    const messageMatch = log.message.toLowerCase().includes(searchText);
+                    const dataStr = log.data
+                        ? typeof log.data === "string"
+                            ? log.data
+                            : JSON.stringify(log.data)
+                        : "";
+                    const dataMatch = dataStr.toLowerCase().includes(searchText);
+                    return messageMatch || dataMatch;
                 });
             }
             // Filter by request ID

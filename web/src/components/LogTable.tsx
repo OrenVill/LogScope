@@ -37,6 +37,33 @@ export const LogTable: React.FC<LogTableProps> = ({
   onSort,
 }) => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (eventId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(eventId)) {
+      newExpanded.delete(eventId);
+    } else {
+      newExpanded.add(eventId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  const formatContent = (data: unknown): string => {
+    if (typeof data === "string") {
+      return data;
+    }
+    return JSON.stringify(data, null, 2);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // Visual feedback could be added here
+      console.log('Copied to clipboard')
+    }).catch(() => {
+      console.error('Failed to copy to clipboard')
+    })
+  };
   
   const sortedLogs = useMemo(() => {
     const sorted = [...logs];
@@ -100,14 +127,18 @@ export const LogTable: React.FC<LogTableProps> = ({
   return (
     <div className="log-table">
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h2 className="h4 mb-0">📋 Logs</h2>
-        <span className="badge bg-primary">{logs.length} logs</span>
+        <div>
+          <h2 className="h4 mb-1">📋 Logs</h2>
+          <p className="text-muted small mb-0">Live structured logging and inspection</p>
+        </div>
+        <span className="badge bg-primary fs-6 px-3 py-2">{logs.length} logs</span>
       </div>
 
-      <div className="table-responsive">
+      <div className="log-table-container card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden">
         <table className="table table-hover table-sm">
           <thead className="table-light">
             <tr>
+              <th style={{ cursor: "pointer", width: "40px" }}>•</th>
               <th style={{ cursor: "pointer", width: "30px" }}>Level</th>
               <th style={{ cursor: "pointer" }} onClick={() => toggleSort("timestamp")}>
                 Timestamp {sortBy === "timestamp" && (sortOrder === "desc" ? "↓" : "↑")}
@@ -119,46 +150,113 @@ export const LogTable: React.FC<LogTableProps> = ({
           </thead>
           <tbody>
             {sortedLogs.map((log) => (
-              <tr 
-                key={log.eventId} 
-                title={`ID: ${log.eventId}`}
-                className={`log-row-${log.level}`}
-              >
-                <td className="text-center">
-                  <span
-                    className={`badge bg-${levelColors[log.level]}`}
-                    title={`Level: ${log.level}`}
-                  >
-                    {levelIcons[log.level]}
-                  </span>
-                </td>
-                <td>
-                  <small className="text-muted">
-                    {new Date(log.timestamp).toLocaleString()}
-                  </small>
-                </td>
-                <td>
-                  <span className="fw-bold">{log.subject}</span>
-                </td>
-                <td>
-                  <small>
-                    {typeof log.content === "string"
-                      ? log.content.substring(0, 50)
-                      : JSON.stringify(log.content).substring(0, 50)}
-                    {(typeof log.content === "string"
-                      ? log.content
-                      : JSON.stringify(log.content)
-                    ).length > 50 && "..."}
-                  </small>
-                </td>
-                <td>
-                  <small className="text-muted">
-                    {log.source.runtime === "node" ? "🖥️ Backend" : "🌐 Frontend"}
-                    <br />
-                    <code className="small">{log.source.serviceName}</code>
-                  </small>
-                </td>
-              </tr>
+              <React.Fragment key={log.eventId}>
+                <tr 
+                  title={`ID: ${log.eventId}`}
+                  className={`log-row-${log.level}`}
+                >
+                  <td className="text-center" style={{ cursor: "pointer" }} onClick={() => toggleExpanded(log.eventId)}>
+                    <span style={{ fontSize: "1rem" }}>
+                      {expandedRows.has(log.eventId) ? "▼" : "▶"}
+                    </span>
+                  </td>
+                  <td className="text-center">
+                    <span
+                      className={`badge bg-${levelColors[log.level]}`}
+                      title={`Level: ${log.level}`}
+                    >
+                      {levelIcons[log.level]}
+                    </span>
+                  </td>
+                  <td>
+                    <small className="text-muted">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </small>
+                  </td>
+                  <td>
+                    <span className="fw-bold">{log.subject}</span>
+                  </td>
+                  <td>
+                    <small>
+                      {log.message ? log.message.substring(0, 50) : <em className="text-muted">(no message)</em>}
+                      {log.message && log.message.length > 50 && "..."}
+                    </small>
+                  </td>
+                  <td>
+                    <small className="text-muted">
+                      {log.source.runtime === "node" ? "🖥️ Backend" : "🌐 Frontend"}
+                      <br />
+                      <code className="small">{log.source.serviceName}</code>
+                    </small>
+                  </td>
+                </tr>
+                {expandedRows.has(log.eventId) && (
+                  <tr className={`log-row-expanded log-row-${log.level}`}>
+                    <td colSpan={6} className="p-3">
+                      <div className="log-details">
+                        <div className="log-details-section">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h6 className="text-uppercase small fw-bold mb-0">📝 Message</h6>
+                          </div>
+                          <p className="mb-3">{log.message || <em className="text-muted">(no message)</em>}</p>
+                        </div>
+
+                        {log.data ? (
+                          <div className="log-details-section">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <h6 className="text-uppercase small fw-bold mb-0">📊 Data</h6>
+                              <button 
+                                className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                onClick={() => copyToClipboard(formatContent(log.data))}
+                                title="Copy data to clipboard"
+                              >
+                                📋 Copy
+                              </button>
+                            </div>
+                            <pre className="log-content-display mb-3">{formatContent(log.data)}</pre>
+                          </div>
+                        ) : null}
+
+                        <div className="row">
+                          <div className="col-md-6">
+                            <h6 className="text-uppercase small fw-bold mb-2">📍 Source Information</h6>
+                            <div className="log-metadata">
+                              <div><strong>Function:</strong> <code>{log.source.function}</code></div>
+                              <div><strong>File:</strong> <code>{log.source.file}</code></div>
+                              <div><strong>Process:</strong> <code>{log.source.process}</code></div>
+                              <div><strong>Runtime:</strong> {log.source.runtime === "node" ? "🖥️ Node.js" : "🌐 Browser"}</div>
+                              <div><strong>Service:</strong> {log.source.serviceName}</div>
+                            </div>
+                          </div>
+
+                          <div className="col-md-6">
+                            <h6 className="text-uppercase small fw-bold mb-2">🔗 Correlation</h6>
+                            <div className="log-metadata">
+                              {log.correlation.requestId && (
+                                <div><strong>Request ID:</strong> <code>{log.correlation.requestId}</code></div>
+                              )}
+                              {log.correlation.sessionId && (
+                                <div><strong>Session ID:</strong> <code>{log.correlation.sessionId}</code></div>
+                              )}
+                              {log.correlation.userId && (
+                                <div><strong>User ID:</strong> <code>{log.correlation.userId}</code></div>
+                              )}
+                              {!log.correlation.requestId && !log.correlation.sessionId && !log.correlation.userId && (
+                                <div className="text-muted small">No correlation data</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <h6 className="text-uppercase small fw-bold mb-2">🆔 Event ID</h6>
+                          <code className="d-inline-block p-2 bg-light rounded small">{log.eventId}</code>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

@@ -1,4 +1,4 @@
-export type LogLevel = "debug" | "info" | "warn" | "error" | "success";
+export type LogLevel = "debug" | "info" | "warn" | "error" | "success" | "critical";
 
 export interface LogSource {
   function: string;
@@ -19,7 +19,8 @@ export interface LogEntry {
   timestamp: string;
   level: LogLevel;
   subject: string;
-  content: string | Record<string, any>;
+  message: string;
+  data?: string | Record<string, any>;
   source: LogSource;
   correlation: Correlation;
 }
