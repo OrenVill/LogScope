@@ -1,4 +1,4 @@
-export type LogLevel = "debug" | "info" | "warn" | "error" | "success";
+export type LogLevel = "debug" | "info" | "warn" | "error" | "critical" | "success";
 
 export interface LogSource {
   function: string;

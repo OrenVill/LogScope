@@ -4,23 +4,31 @@
 
 ## Project Overview
 
-**LogScope** is a structured log collection and query service for web applications. It aggregates log events from both backend (Node/Express) and frontend (browser) environments into a unified queryable store.
+**LogScope** is a self-hosted structured log collection and query service for web applications. Users clone the repository, run the service locally on their own device, and use it for development and debugging. It aggregates log events from both backend (Node/Express) and frontend (browser) environments into a unified queryable store.
 
-**Purpose:** Enable AI agents and developers to detect errors, explore root causes, recognize patterns, and analyze event sequences through correlated structured logging.
+**Purpose:** Enable developers to detect errors, explore root causes, recognize patterns, and analyze event sequences through correlated structured logging in a local, self-contained environment.
 
 ## Current Status
 
-**Phase 7: Documentation & Configuration** ⏳ READY TO START
-- OpenAPI/Swagger specification
-- Component documentation
-- Deployment guide and environment setup
-- Getting started tutorial
+**Phase 8: Quick Start Scripts & Polish** ✅ COMPLETE
+- Automated configuration scripts (configure.sh, configure.bat)
+- Comprehensive README.md with feature overview
+- Port configuration helpers for easy setup
+- Windows and Linux/macOS support
+
+**Phase 7: Documentation & Configuration** ✅ COMPLETE
+- OpenAPI/Swagger specification (openapi.yaml)
+- Getting started guide (GETTING_STARTED.md)
+- Environment configuration documentation (ENVIRONMENT.md)
+- Deployment guide (DEPLOYMENT.md)
 
 **Branch:** `main`
 
 **Completed Features:**
+- ✅ Phase 8: Quick Start Scripts & Polish
+- ✅ Phase 7: Documentation & Configuration
 - ✅ Phase 6: Error Handling & Validation (input validation, rate limiting, retry logic)
-- ✅ Phase 5: Frontend Log Viewer (complete React UI)
+- ✅ Phase 5: Frontend Log Viewer (complete React UI with critical alerts)
 - ✅ Phase 4: Real-Time Streaming (WebSocket)
 - ✅ Phase 3: Query & Filtering API
 - ✅ Phase 2: Log Collection & Persistence
@@ -32,9 +40,9 @@
 2. ✅ **Phase 2:** Log Collection & Persistence (POST /api/logs/collect, file storage)
 3. ✅ **Phase 3:** Query & Filtering API (GET /api/logs/search with time/level/subject filters)
 4. ✅ **Phase 4:** Real-Time Streaming (WebSocket endpoint /ws)
-5. ✅ **Phase 5:** Frontend Log Viewer (full UI components)
+5. ✅ **Phase 5:** Frontend Log Viewer (full UI components with critical alerts)
 6. ✅ **Phase 6:** Error Handling & Validation (rate limiting, input validation)
-7. ⏳ **Phase 7:** Documentation & Configuration (API docs, getting started)
+7. ✅ **Phase 7:** Documentation & Configuration (API docs, getting started, deployment)
 
 ## Key Data Models
 

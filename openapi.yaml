@@ -1,0 +1,571 @@
+openapi: 3.0.0
+info:
+  title: LogScope API
+  description: |
+    Structured log collection and query service for web applications.
+    
+    LogScope aggregates log events from both backend (Node.js/Express) and frontend (browser) 
+    environments into a unified queryable store. It provides real-time streaming via WebSocket,
+    comprehensive filtering, and correlation tracking.
+    
+    **Base URL:** `http://localhost:3000`
+  version: 1.0.0
+  contact:
+    name: LogScope
+    url: https://github.com/OrenVill/LogScope
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Logs
+    description: Log collection and retrieval
+  - name: Search
+    description: Search and filter logs
+  - name: Correlation
+    description: Trace logs by correlation IDs
+  - name: Health
+    description: Service health checks
+  - name: WebSocket
+    description: Real-time log streaming
+
+paths:
+  /api/logs/collect:
+    post:
+      tags:
+        - Logs
+      summary: Collect a new log entry
+      description: |
+        Collects a log entry from frontend or backend source.
+        The server generates a unique eventId and assigns the timestamp.
+        
+        **Rate Limit:** 100 requests per minute per IP
+      operationId: collectLog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogEntryInput"
+            examples:
+              backendLog:
+                value:
+                  timestamp: "2026-02-19T12:00:00Z"
+                  level: info
+                  subject: user_login
+                  content: "User logged in successfully"
+                  source:
+                    runtime: node
+                    function: handleLogin
+                    file: auth.ts
+                    process: "1234"
+                    serviceName: auth-service
+                  correlation:
+                    requestId: req-12345
+                    sessionId: sess-67890
+              frontendLog:
+                value:
+                  timestamp: "2026-02-19T12:00:00Z"
+                  level: warn
+                  subject: api_timeout
+                  content: "API request timed out"
+                  source:
+                    runtime: browser
+                    function: fetchUser
+                    file: api.ts
+                    process: "browser"
+                    serviceName: web-app
+      responses:
+        "201":
+          description: Log entry successfully collected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectLogResponse"
+        "400":
+          description: Invalid log entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidTimestamp:
+                  value:
+                    success: false
+                    error: "Timestamp is not a valid ISO 8601 date."
+                    errorCode: INVALID_TIMESTAMP
+                invalidLevel:
+                  value:
+                    success: false
+                    error: "Invalid log level. Must be one of: debug, info, warn, error, critical, success"
+                    errorCode: INVALID_LEVEL
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests (rate limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error: "Too many requests. Rate limit exceeded."
+                errorCode: RATE_LIMIT_EXCEEDED
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Maximum requests per minute
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in current window
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix timestamp when limit resets
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/logs/search:
+    get:
+      tags:
+        - Search
+      summary: Search and filter logs
+      description: |
+        Search logs with comprehensive filtering options.
+        Results are paginated and support ordering by timestamp or severity.
+      operationId: searchLogs
+      parameters:
+        - name: timeFrom
+          in: query
+          description: Start of time range (ISO 8601 UTC)
+          schema:
+            type: string
+            format: date-time
+          example: "2026-02-19T00:00:00Z"
+        - name: timeTo
+          in: query
+          description: End of time range (ISO 8601 UTC)
+          schema:
+            type: string
+            format: date-time
+          example: "2026-02-19T23:59:59Z"
+        - name: level
+          in: query
+          description: Filter by log level
+          schema:
+            $ref: "#/components/schemas/LogLevel"
+        - name: subject
+          in: query
+          description: Filter by subject (case-insensitive partial match)
+          schema:
+            type: string
+          example: "user_login"
+        - name: text
+          in: query
+          description: Search in log content (case-insensitive partial match)
+          schema:
+            type: string
+          example: "login"
+        - name: requestId
+          in: query
+          description: Filter by correlation request ID
+          schema:
+            type: string
+        - name: sessionId
+          in: query
+          description: Filter by correlation session ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Number of results per page (1-1000)
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: Number of results to skip for pagination
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchLogsResponse"
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/logs/correlation/request/{requestId}:
+    get:
+      tags:
+        - Correlation
+      summary: Get logs by request ID
+      description: Find all logs correlated by a specific request ID
+      operationId: getLogsByRequestId
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          description: Request correlation ID
+          schema:
+            type: string
+          example: "req-12345"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Logs correlated by request ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchLogsResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/logs/correlation/session/{sessionId}:
+    get:
+      tags:
+        - Correlation
+      summary: Get logs by session ID
+      description: Find all logs correlated by a specific session ID
+      operationId: getLogsBySessionId
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Session correlation ID
+          schema:
+            type: string
+          example: "sess-67890"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Logs correlated by session ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchLogsResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/logs/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns service health status and log counts
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /ws:
+    get:
+      tags:
+        - WebSocket
+      summary: Real-time log streaming
+      description: |
+        WebSocket endpoint for subscribing to real-time log events.
+        
+        **Connection:** `ws://localhost:3000/ws`
+        
+        **Subscribe to filtered logs (after connection):**
+        ```json
+        {
+          "type": "subscribe",
+          "filters": {
+            "level": "error",
+            "subject": "api"
+          }
+        }
+        ```
+        
+        **Receive log events:**
+        ```json
+        {
+          "type": "log",
+          "data": { /* LogEntry */ }
+        }
+        ```
+      operationId: streamLogs
+      responses:
+        "101":
+          description: WebSocket connection established
+        "400":
+          description: Invalid WebSocket upgrade request
+
+components:
+  schemas:
+    LogLevel:
+      type: string
+      enum:
+        - debug
+        - info
+        - warn
+        - error
+        - critical
+        - success
+      description: Log severity level
+
+    LogRuntime:
+      type: string
+      enum:
+        - node
+        - browser
+      description: Log source runtime environment
+
+    LogSource:
+      type: object
+      required:
+        - runtime
+      properties:
+        runtime:
+          $ref: "#/components/schemas/LogRuntime"
+        function:
+          type: string
+          description: Function name where log originated
+        file:
+          type: string
+          description: Source filename
+        process:
+          type: string
+          description: Process ID or name
+        serviceName:
+          type: string
+          description: Service or application name
+
+    Correlation:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Request trace ID
+        sessionId:
+          type: string
+          description: User session ID
+        userId:
+          type: string
+          description: User identifier
+
+    LogEntry:
+      type: object
+      required:
+        - eventId
+        - timestamp
+        - level
+        - subject
+        - content
+        - source
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique event identifier (auto-generated by server)
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 UTC timestamp
+        level:
+          $ref: "#/components/schemas/LogLevel"
+        subject:
+          type: string
+          maxLength: 255
+          description: Categorical log label
+        content:
+          oneOf:
+            - type: string
+            - type: object
+          maxLength: 10240
+          description: Log message or structured data
+        source:
+          $ref: "#/components/schemas/LogSource"
+        correlation:
+          $ref: "#/components/schemas/Correlation"
+
+    LogEntryInput:
+      type: object
+      required:
+        - timestamp
+        - level
+        - subject
+        - source
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 UTC timestamp
+        level:
+          $ref: "#/components/schemas/LogLevel"
+        subject:
+          type: string
+          maxLength: 255
+          description: Categorical log label
+        content:
+          oneOf:
+            - type: string
+            - type: object
+          description: Log message or structured data
+        source:
+          $ref: "#/components/schemas/LogSource"
+        correlation:
+          $ref: "#/components/schemas/Correlation"
+
+    CollectLogResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            eventId:
+              type: string
+              format: uuid
+            timestamp:
+              type: string
+              format: date-time
+
+    SearchLogsResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogEntry"
+        total:
+          type: integer
+          description: Total number of matching logs
+        limit:
+          type: integer
+          description: Number of results returned
+        offset:
+          type: integer
+          description: Pagination offset used
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - errorCode
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+          description: Human-readable error message
+        errorCode:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - INVALID_TIMESTAMP
+            - INVALID_LEVEL
+            - INVALID_SUBJECT
+            - SUBJECT_TOO_LONG
+            - INVALID_RUNTIME
+            - INVALID_SOURCE
+            - CONTENT_TOO_LARGE
+            - PAYLOAD_TOO_LARGE
+            - RATE_LIMIT_EXCEEDED
+            - INVALID_TIME_RANGE
+            - INVALID_LIMIT
+            - INVALID_OFFSET
+            - INVALID_JSON
+            - SERVER_ERROR
+            - NETWORK_ERROR
+
+    HealthResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            backend:
+              type: object
+              properties:
+                count:
+                  type: integer
+            frontend:
+              type: object
+              properties:
+                count:
+                  type: integer
+            total:
+              type: integer

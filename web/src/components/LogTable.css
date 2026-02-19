@@ -71,3 +71,30 @@
 .log-row-success:hover > * {
   background-color: #c3e6cb !important;
 }
+
+.log-row-critical,
+.log-row-critical > * {
+  background-color: #ff0000 !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+.log-row-critical {
+  border-left: 6px solid #cc0000;
+  animation: pulse-critical 1.5s infinite;
+}
+
+.log-row-critical:hover,
+.log-row-critical:hover > * {
+  background-color: #ff3333 !important;
+  color: white !important;
+}
+
+@keyframes pulse-critical {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}

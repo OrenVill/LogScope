@@ -103,5 +103,20 @@
       "serviceName": "testService"
     },
     "correlation": {}
+  },
+  {
+    "eventId": "91078c65-a93f-472d-9aef-cd069c283bbe",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "critical",
+    "subject": "baboon",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
   }
 ]

@@ -19,6 +19,8 @@ function App() {
   const [isRealTime, setIsRealTime] = useState(false)
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
+  const [hasCritical, setHasCritical] = useState(false)
+  const [hasNoIssues, setHasNoIssues] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
 
   // Load logs from API
@@ -51,6 +53,15 @@ function App() {
   useEffect(() => {
     loadLogs()
   }, [])
+
+  // Check for critical logs and issues
+  useEffect(() => {
+    const hasCriticalLog = logs.some(log => log.level === 'critical')
+    setHasCritical(hasCriticalLog)
+    
+    const hasIssues = logs.some(log => ['error', 'warn', 'critical'].includes(log.level))
+    setHasNoIssues(!hasIssues && logs.length > 0)
+  }, [logs])
 
   // Filter logs by runtime
   const filteredLogs = logs.filter(log => {
@@ -120,9 +131,45 @@ function App() {
   return (
     <div className="app d-flex flex-column h-100">
       <header className="app-header bg-dark text-white py-4 px-4 shadow-sm">
-        <div className="container-fluid">
-          <h1 className="mb-2 display-6">LogScope</h1>
-          <p className="text-white-50 mb-0">Structured log collection and query service</p>
+        <div className="container-fluid d-flex justify-content-between align-items-start">
+          <div>
+            <h1 className="mb-2 display-6">LogScope</h1>
+            <p className="text-white-50 mb-0">Structured log collection and query service</p>
+          </div>
+          <div className="d-flex flex-column gap-2">
+            {hasCritical && (
+              <div className="mb-0 d-flex align-items-center gap-3" style={{
+                backgroundColor: '#ff0000',
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '4px',
+                animation: 'pulse-alert 0.8s infinite',
+                fontWeight: 600
+              }}>
+                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🚨</div>
+                <div>
+                  <strong style={{ fontSize: '1.1rem' }}>CRITICAL ALERT</strong><br />
+                  <small>Critical logs detected in the system</small>
+                </div>
+              </div>
+            )}
+            {hasNoIssues && (
+              <div className="mb-0 d-flex align-items-center gap-3" style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '4px',
+                animation: 'pulse-success 1.2s infinite',
+                fontWeight: 600
+              }}>
+                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>✅</div>
+                <div>
+                  <strong style={{ fontSize: '1.1rem' }}>ALL SYSTEMS OPERATIONAL</strong><br />
+                  <small>No errors, warnings, or critical logs</small>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

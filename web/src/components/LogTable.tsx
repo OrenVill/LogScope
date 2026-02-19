@@ -14,6 +14,7 @@ const levelColors: Record<LogLevel, string> = {
   info: "info",
   warn: "warning",
   error: "danger",
+  critical: "danger",
   success: "success",
 };
 
@@ -22,6 +23,7 @@ const levelIcons: Record<LogLevel, string> = {
   info: "ℹ️",
   warn: "⚠️",
   error: "❌",
+  critical: "🚨",
   success: "✅",
 };
 
@@ -46,7 +48,7 @@ export const LogTable: React.FC<LogTableProps> = ({
         return sortOrder === "desc" ? bTime - aTime : aTime - bTime;
       });
     } else if (sortBy === "level") {
-      const levelOrder = { debug: 0, info: 1, success: 2, warn: 3, error: 4 };
+      const levelOrder = { debug: 0, info: 1, success: 2, warn: 3, error: 4, critical: 5 };
       sorted.sort((a, b) => {
         const aLevel = levelOrder[a.level];
         const bLevel = levelOrder[b.level];

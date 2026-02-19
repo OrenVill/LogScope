@@ -72,7 +72,7 @@ export const validateLogEntry = (
   }
 
   // Validate log level
-  const validLevels = ["debug", "info", "warn", "error", "success"];
+  const validLevels = ["debug", "info", "warn", "error", "critical", "success"];
   if (!level || !validLevels.includes(level)) {
     return res.status(400).json({
       success: false,

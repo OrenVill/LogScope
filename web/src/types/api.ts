@@ -1,6 +1,6 @@
 export type { LogEntry } from "./log";
 
-export type LogLevel = "debug" | "info" | "warn" | "error" | "success";
+export type LogLevel = "debug" | "info" | "warn" | "error" | "critical" | "success";
 
 export interface SuccessResponse<T = any> {
   success: true;
