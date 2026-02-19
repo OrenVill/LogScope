@@ -12,9 +12,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run dev',
+    // Use `vite dev` locally, but in CI build and serve the production preview (faster / more stable).
+    command: process.env.CI ? 'npm run build && npm run preview -- --port 5174' : 'npm run dev',
     port: 5174,
     reuseExistingServer: true,
+    timeout: 120_000, // wait up to 2m for server startup in slow CI environments
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
