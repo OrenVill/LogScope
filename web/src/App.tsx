@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import { FilterPanel } from './components/FilterPanel'
 import { LogTable } from './components/LogTable'
@@ -39,7 +39,7 @@ function App() {
   }
 
   // Load logs from API
-  const loadLogs = async (filters?: SearchFilters) => {
+  const loadLogs = useCallback(async (filters?: SearchFilters) => {
     setLoading(true)
     setError(null)
     try {
@@ -62,12 +62,12 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Load logs on mount
   useEffect(() => {
     loadLogs()
-  }, [])
+  }, [loadLogs])
 
   // Auto-connect WebSocket if real-time mode is enabled
   useEffect(() => {
@@ -103,7 +103,7 @@ function App() {
 
     // Clean up any stale socket references that are CLOSED/ERROR
     if (wsRef.current && (wsRef.current.readyState === WebSocket.CLOSING || wsRef.current.readyState === WebSocket.CLOSED)) {
-      try { wsRef.current.close() } catch (e) {}
+      try { wsRef.current.close() } catch { /* ignore */ }
       wsRef.current = null
     }
 
@@ -151,12 +151,12 @@ function App() {
         cur.close()
       } else {
         // Remove our handlers so a late error/close won't propagate to the app
-        try { cur.onopen = null } catch (e) {}
-        try { cur.onmessage = null } catch (e) {}
-        try { cur.onerror = null } catch (e) {}
-        try { cur.onclose = null } catch (e) {}
+        try { cur.onopen = null } catch { /* ignore */ }
+        try { cur.onmessage = null } catch { /* ignore */ }
+        try { cur.onerror = null } catch { /* ignore */ }
+        try { cur.onclose = null } catch { /* ignore */ }
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
 

@@ -29,7 +29,6 @@ test('real-time: new log appears when posted to backend', async ({ page }) => {
 
   // Read current top-row message (if any)
   const topMessageLocator = page.locator('tbody tr').first().locator('td').nth(4)
-  const beforeText = (await topMessageLocator.textContent()) || ''
 
   // Post a new unique log
   const unique = `e2e-msg-${Date.now()}`
@@ -113,7 +112,7 @@ test('dark mode toggles data-bs-theme attribute', async ({ page }) => {
 })
 
 // Copy data to clipboard for an expanded log
-test('copy data button places JSON on clipboard', async ({ page, browserName }) => {
+test('copy data button places JSON on clipboard', async ({ page }) => {
   await page.goto('/')
 
   const health = await page.request.get('http://localhost:3000/health').catch(() => null)

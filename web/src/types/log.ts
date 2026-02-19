@@ -20,7 +20,7 @@ export interface LogEntry {
   level: LogLevel;
   subject: string;
   message: string;
-  data?: string | Record<string, any>;
+  data?: string | Record<string, unknown>;
   source: LogSource;
   correlation: Correlation;
 }

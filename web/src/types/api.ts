@@ -2,7 +2,7 @@ export type { LogEntry, LogSummary } from "./log";
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "critical" | "success";
 
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T = unknown> {
   success: true;
   data: T;
   total?: number;
@@ -16,7 +16,7 @@ export interface ErrorResponse {
   errorCode: string;
 }
 
-export type ApiResponse<T = any> = SuccessResponse<T> | ErrorResponse;
+export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
 
 export interface SearchFilters {
   timeFrom?: string;

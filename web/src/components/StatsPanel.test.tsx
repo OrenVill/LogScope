@@ -4,10 +4,10 @@ import { StatsPanel } from './StatsPanel'
 import type { LogEntry } from '../types/api'
 
 describe('StatsPanel', () => {
-  const make = (level: string): LogEntry => ({
+  const make = (level: LogEntry['level']): LogEntry => ({
     eventId: `e-${level}`,
     timestamp: new Date().toISOString(),
-    level: level as any,
+    level,
     subject: 's',
     message: 'm',
     data: undefined,

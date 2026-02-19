@@ -39,8 +39,8 @@ describe('LogTable (lazy details)', () => {
 
   it('shows spinner then full details when expanding a summary', async () => {
     // Delay the mocked fetch so we can assert the loading state appears
-    let resolveFetch: (value?: any) => void = () => {}
-    const fetchPromise = new Promise((res) => { resolveFetch = res })
+    let resolveFetch: (value?: unknown) => void = () => {}
+    const fetchPromise = new Promise((res: (v?: unknown) => void) => { resolveFetch = res })
     mockedLogsApi.getLogById.mockImplementationOnce(() => fetchPromise)
 
     render(<LogTable logs={[summary]} loading={false} sortBy="timestamp" onSort={() => {}} />)
