@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install dependencies (root workspace)
+        run: npm ci
+
+      - name: Lint (web)
+        working-directory: ./web
+        run: npm run lint
+
+      - name: Build server
+        working-directory: ./server
+        run: npm run build
+
+      - name: Run server unit tests
+        working-directory: ./server
+        run: npm run test
+
+      - name: Start backend (background)
+        working-directory: ./server
+        run: |
+          nohup npm start > server-ci.log 2>&1 &
+          echo "started server, waiting for health"
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sSf http://localhost:3000/health >/dev/null; then
+              echo "backend healthy"; break
+            fi
+            echo "waiting for backend... ($i)"; sleep 1
+          done
+
+      - name: Build web
+        working-directory: ./web
+        run: npm run build
+
+      - name: Run web unit tests (Vitest)
+        working-directory: ./web
+        run: npm run test:unit
+
+      - name: Install Playwright browsers
+        working-directory: ./web
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright E2E
+        working-directory: ./web
+        run: npx playwright test --reporter=github
