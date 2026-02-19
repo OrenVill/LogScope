@@ -33,5 +33,5 @@ export interface IQueryIndex {
      */
     getById(eventId: string): LogEntry | null;
 }
-export declare const createQueryIndex: () => IQueryIndex;
+export declare const createQueryIndex: (maxSize?: number) => IQueryIndex;
 //# sourceMappingURL=index.d.ts.map

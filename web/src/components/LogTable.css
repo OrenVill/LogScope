@@ -1,0 +1,73 @@
+.table-responsive .table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.log-row-debug,
+.log-row-debug > * {
+  background-color: #e9ecef !important;
+}
+
+.log-row-debug {
+  border-left: 4px solid #6c757d;
+}
+
+.log-row-debug:hover,
+.log-row-debug:hover > * {
+  background-color: #d9dee5 !important;
+}
+
+.log-row-info,
+.log-row-info > * {
+  background-color: #d1ecf1 !important;
+}
+
+.log-row-info {
+  border-left: 4px solid #17a2b8;
+}
+
+.log-row-info:hover,
+.log-row-info:hover > * {
+  background-color: #b8e1ea !important;
+}
+
+.log-row-warn,
+.log-row-warn > * {
+  background-color: #ffb347 !important;
+}
+
+.log-row-warn {
+  border-left: 4px solid #ff9500;
+}
+
+.log-row-warn:hover,
+.log-row-warn:hover > * {
+  background-color: #ff9500 !important;
+}
+
+.log-row-error,
+.log-row-error > * {
+  background-color: #f28482 !important;
+}
+
+.log-row-error {
+  border-left: 4px solid #dc3545;
+}
+
+.log-row-error:hover,
+.log-row-error:hover > * {
+  background-color: #e26f6a !important;
+}
+
+.log-row-success,
+.log-row-success > * {
+  background-color: #d4edda !important;
+}
+
+.log-row-success {
+  border-left: 4px solid #28a745;
+}
+
+.log-row-success:hover,
+.log-row-success:hover > * {
+  background-color: #c3e6cb !important;
+}

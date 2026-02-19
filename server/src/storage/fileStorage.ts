@@ -1,3 +1,5 @@
+import { promises as fs } from "fs";
+import path from "path";
 import { LogEntry } from "../types";
 
 /**
@@ -27,20 +29,69 @@ export interface IFileStorage {
   initialize(): Promise<void>;
 }
 
-// Stub for Phase 2 implementation
-export const createFileStorage = (): IFileStorage => {
+export const createFileStorage = (logDir: string): IFileStorage => {
+  const getFilePath = (runtime: "node" | "browser"): string => {
+    const filename = runtime === "node" ? "backend.json" : "frontend.json";
+    return path.join(logDir, filename);
+  };
+
+  const readLogs = async (runtime: "node" | "browser"): Promise<LogEntry[]> => {
+    const filePath = getFilePath(runtime);
+    try {
+      const data = await fs.readFile(filePath, "utf-8");
+      return JSON.parse(data);
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
+  };
+
   return {
-    appendLog: async () => {
-      throw new Error("Not implemented in Phase 1");
+    appendLog: async (log: LogEntry) => {
+      const filePath = getFilePath(log.source.runtime);
+      try {
+        // Read existing logs
+        let logs: LogEntry[] = [];
+        try {
+          const data = await fs.readFile(filePath, "utf-8");
+          logs = JSON.parse(data);
+        } catch (error: any) {
+          // File doesn't exist or is empty, start with empty array
+          if (error.code !== "ENOENT") throw error;
+        }
+
+        // Append new log
+        logs.push(log);
+
+        // Write back to file
+        await fs.writeFile(filePath, JSON.stringify(logs, null, 2), "utf-8");
+      } catch (error) {
+        console.error(`Error appending log to ${filePath}:`, error);
+        throw error;
+      }
     },
-    readLogs: async () => {
-      throw new Error("Not implemented in Phase 1");
+
+    readLogs,
+
+    getLogById: async (eventId: string) => {
+      // Check both runtime files
+      for (const runtime of ["node" as const, "browser" as const]) {
+        const logs = await readLogs(runtime);
+        const log = logs.find((l: LogEntry) => l.eventId === eventId);
+        if (log) return log;
+      }
+      return null;
     },
-    getLogById: async () => {
-      throw new Error("Not implemented in Phase 1");
-    },
+
     initialize: async () => {
-      // Stub
+      try {
+        await fs.mkdir(logDir, { recursive: true });
+      } catch (error) {
+        console.error(`Error initializing log directory ${logDir}:`, error);
+        throw error;
+      }
     },
   };
 };

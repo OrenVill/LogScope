@@ -1,0 +1,62 @@
+[
+  {
+    "eventId": "95d09ad8-7036-4553-a4ba-e05ea58bc755",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "info",
+    "subject": "websocket_test",
+    "content": "Testing WebSocket broadcast",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "5678",
+      "runtime": "browser",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "4ceb63c9-e147-4091-bff8-f9d0a47228a0",
+    "timestamp": "2026-02-19T12:00:00Z",
+    "level": "info",
+    "subject": "test",
+    "content": "Real-time test",
+    "source": {
+      "function": "test",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "browser",
+      "serviceName": "ws-test"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "e45ea5b7-ebab-472f-a36f-11bedce3d736",
+    "timestamp": "2026-02-19T12:00:00Z",
+    "level": "info",
+    "subject": "test",
+    "content": "Real-time test",
+    "source": {
+      "function": "test",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "browser",
+      "serviceName": "ws-test"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "935a23ec-dce3-4597-bcf0-da104558789d",
+    "timestamp": "2026-02-19T12:00:00Z",
+    "level": "info",
+    "subject": "test",
+    "content": "Real-time test",
+    "source": {
+      "function": "test",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "browser",
+      "serviceName": "ws-test"
+    },
+    "correlation": {}
+  }
+]

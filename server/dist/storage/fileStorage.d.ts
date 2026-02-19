@@ -21,5 +21,5 @@ export interface IFileStorage {
      */
     initialize(): Promise<void>;
 }
-export declare const createFileStorage: () => IFileStorage;
+export declare const createFileStorage: (logDir: string) => IFileStorage;
 //# sourceMappingURL=fileStorage.d.ts.map

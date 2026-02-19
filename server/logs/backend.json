@@ -1,0 +1,107 @@
+[
+  {
+    "eventId": "5ef88443-d0e2-4fae-b9c8-1251bb28ca6b",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "info",
+    "subject": "test",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "2c8efc4b-7796-4cc5-9b97-ded0ebb02a3c",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "info",
+    "subject": "test",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "022b91e6-604c-4ebb-ac73-8cc75f63dc3c",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "info",
+    "subject": "baboon",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "cae8f63f-8cbb-45f8-9d79-4638bc9a0871",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "error",
+    "subject": "baboon",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "f6b33200-1496-4193-9b88-670be9de0589",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "success",
+    "subject": "baboon",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "0e264c24-4263-4d48-8246-1a88dd730d59",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "debug",
+    "subject": "baboon",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  },
+  {
+    "eventId": "ef1e5793-45ba-4276-a272-879bf2b1e710",
+    "timestamp": "2026-02-19T10:00:00Z",
+    "level": "warn",
+    "subject": "baboon",
+    "content": "Test log entry",
+    "source": {
+      "function": "testFunc",
+      "file": "test.ts",
+      "process": "1234",
+      "runtime": "node",
+      "serviceName": "testService"
+    },
+    "correlation": {}
+  }
+]
