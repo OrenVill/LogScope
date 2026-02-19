@@ -28,6 +28,16 @@ function App() {
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
 
+  // Ensure logs are unique by eventId (dedupe helper)
+  const dedupeByEventId = (items: LogEntry[]) => {
+    const seen = new Set<string>()
+    return items.filter(item => {
+      if (seen.has(item.eventId)) return false
+      seen.add(item.eventId)
+      return true
+    })
+  }
+
   // Load logs from API
   const loadLogs = async (filters?: SearchFilters) => {
     setLoading(true)
@@ -35,7 +45,7 @@ function App() {
     try {
       const response = await logsApi.searchLogs(filters || {}, { limit: 100, offset: 0 })
       if (response.success) {
-        setLogs(response.data || [])
+        setLogs(dedupeByEventId(response.data || []))
       } else {
         const isRateLimit = response.errorCode === 'RATE_LIMIT_EXCEEDED'
         setError({
@@ -102,7 +112,11 @@ function App() {
 
     wsRef.current = logsApi.connectWebSocket(
       (log: LogEntry) => {
-        setLogs((prev) => [log, ...prev.slice(0, 99)])
+        setLogs((prev) => {
+          // remove any existing entry with same eventId then prepend the new one
+          const filtered = prev.filter(p => p.eventId !== log.eventId)
+          return [log, ...filtered].slice(0, 100)
+        })
       },
       (error: Error) => {
         // If we're still in the initial connect window and socket isn't open yet, ignore the error
