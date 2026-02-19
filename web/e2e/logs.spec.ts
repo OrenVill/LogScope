@@ -12,7 +12,7 @@ test('search + expand lazy-load + accessibility smoke', async ({ page }) => {
 
   const listRes = await page.request.get('http://localhost:3000/api/logs/search')
   let listJson = null
-  try { listJson = await listRes.json() } catch (e) { /* ignore */ }
+  try { listJson = await listRes.json() } catch { /* ignore */ }
 
   if (!listRes.ok || !listJson?.data || listJson.data.length === 0) {
     // Seed a log so the UI has something to render
