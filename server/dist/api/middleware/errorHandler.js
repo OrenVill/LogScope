@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.errorHandler = void 0;
 /**
  * Error handling middleware for Express
  */
-const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, next) => {
     console.error("Error:", err);
     // Handle payload too large errors
     if (err.code === "PAYLOAD_TOO_LARGE" || err.status === 413) {
@@ -32,5 +29,4 @@ const errorHandler = (err, req, res, next) => {
     };
     res.status(statusCode).json(response);
 };
-exports.errorHandler = errorHandler;
 //# sourceMappingURL=errorHandler.js.map

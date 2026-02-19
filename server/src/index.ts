@@ -3,11 +3,13 @@ import http from "http";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { errorHandler } from "./api/middleware/errorHandler";
-import { createFileStorage } from "./storage/fileStorage";
-import { createQueryIndex } from "./storage";
-import { createLogsRouter } from "./api/routes/logsRouter";
-import { WsLogServer } from "./ws/wsServer";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { errorHandler } from "./api/middleware/errorHandler.js";
+import { createFileStorage } from "./storage/fileStorage.js";
+import { createQueryIndex } from "./storage/index.js";
+import { createLogsRouter } from "./api/routes/logsRouter.js";
+import { WsLogServer } from "./ws/wsServer.js";
 
 // Load environment variables
 dotenv.config();
@@ -59,6 +61,35 @@ app.get("/health", (req, res) => {
 
     // Mount API routes with WebSocket server
     app.use("/api/logs", createLogsRouter(fileStorage, queryIndex, wsLogServer));
+
+    // Serve frontend assets in production (built by Vite -> web/dist)
+    if (process.env.NODE_ENV === "production") {
+      // ESM-safe __dirname
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+
+      // Possible frontend locations (order of preference):
+      // 1) copy of frontend inside server dist (e.g. bundled into server artifact)
+      //    -> runtime path: <server>/dist (so we check `<__dirname>/dist`)
+      // 2) sibling web/dist during local deploy (repo layout)
+      //    -> <repo-root>/web/dist
+      // 3) override via FRONTEND_DIST env var
+      const bundledDist = path.resolve(__dirname, "dist");
+      const siblingWebDist = path.resolve(__dirname, "..", "..", "web", "dist");
+      const clientDist = process.env.FRONTEND_DIST
+        ? path.resolve(process.env.FRONTEND_DIST)
+        : fs.existsSync(bundledDist)
+        ? bundledDist
+        : siblingWebDist;
+
+      console.log(`Serving frontend from: ${clientDist}`);
+      app.use(express.static(clientDist));
+
+      // SPA fallback - serve index.html for unknown non-API routes
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(clientDist, "index.html"));
+      });
+    }
 
     // Error handling middleware
     app.use(errorHandler);

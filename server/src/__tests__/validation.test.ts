@@ -1,6 +1,6 @@
 import express from 'express'
 import request from 'supertest'
-import { validateLogEntry, validateSearchParams } from '../api/middleware/validation'
+import { validateLogEntry, validateSearchParams } from '../api/middleware/validation.js'
 import { describe, it, expect } from 'vitest'
 
 describe('validation middleware', () => {

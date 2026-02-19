@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateSearchParams = exports.validateLogEntry = exports.rateLimitMiddleware = void 0;
 /**
  * Rate limiter for log collection endpoint
  * Limits: 100 requests per minute per IP
@@ -8,7 +5,7 @@ exports.validateSearchParams = exports.validateLogEntry = exports.rateLimitMiddl
 const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 100; // 100 requests per window
-const rateLimitMiddleware = (req, res, next) => {
+export const rateLimitMiddleware = (req, res, next) => {
     const clientIp = req.ip || "unknown";
     const now = Date.now();
     let limiter = rateLimitStore.get(clientIp);
@@ -32,8 +29,7 @@ const rateLimitMiddleware = (req, res, next) => {
     }
     next();
 };
-exports.rateLimitMiddleware = rateLimitMiddleware;
-const validateLogEntry = (req, res, next) => {
+export const validateLogEntry = (req, res, next) => {
     const { timestamp, level, subject, message, source } = req.body;
     // Validate timestamp format (ISO 8601)
     if (!timestamp || typeof timestamp !== "string") {
@@ -116,11 +112,10 @@ const validateLogEntry = (req, res, next) => {
     }
     next();
 };
-exports.validateLogEntry = validateLogEntry;
 /**
  * Validate search/filter parameters
  */
-const validateSearchParams = (req, res, next) => {
+export const validateSearchParams = (req, res, next) => {
     const { timeFrom, timeTo, limit, offset } = req.query;
     // Validate time ranges if provided
     if (timeFrom && isNaN(new Date(timeFrom).getTime())) {
@@ -160,5 +155,4 @@ const validateSearchParams = (req, res, next) => {
     }
     next();
 };
-exports.validateSearchParams = validateSearchParams;
 //# sourceMappingURL=validation.js.map

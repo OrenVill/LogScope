@@ -1,20 +1,17 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.createLogsRouter = void 0;
-const express_1 = require("express");
-const uuid_1 = require("uuid");
-const validation_1 = require("../middleware/validation");
-const createLogsRouter = (storage, queryIndex, wsServer) => {
-    const router = (0, express_1.Router)();
+import { Router } from "express";
+import { v4 as uuidv4 } from "uuid";
+import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation.js";
+export const createLogsRouter = (storage, queryIndex, wsServer) => {
+    const router = Router();
     /**
      * POST /api/logs/collect
      * Collect a log entry from frontend or backend
      */
-    router.post("/collect", validation_1.rateLimitMiddleware, validation_1.validateLogEntry, async (req, res) => {
+    router.post("/collect", rateLimitMiddleware, validateLogEntry, async (req, res) => {
         try {
             const { timestamp, level, subject, message, data, source, correlation, } = req.body;
             // Generate event ID on server
-            const eventId = (0, uuid_1.v4)();
+            const eventId = uuidv4();
             // Create log entry
             const logEntry = {
                 eventId,
@@ -73,7 +70,7 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
      *   - offset: number of results to skip (default: 0)
      *   - lightweight: return summaries only (true/false, default: true)
      */
-    router.get("/search", validation_1.validateSearchParams, async (req, res) => {
+    router.get("/search", validateSearchParams, async (req, res) => {
         try {
             const { timeFrom, timeTo, level, subject, text, requestId, sessionId, limit = 100, offset = 0, lightweight = "true", } = req.query;
             // Validate pagination parameters
@@ -229,5 +226,4 @@ const createLogsRouter = (storage, queryIndex, wsServer) => {
     });
     return router;
 };
-exports.createLogsRouter = createLogsRouter;
 //# sourceMappingURL=logsRouter.js.map

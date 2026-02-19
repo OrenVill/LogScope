@@ -1,10 +1,10 @@
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { LogEntry } from "../../types";
-import { IFileStorage } from "../../storage/fileStorage";
-import { IQueryIndex } from "../../storage";
-import { WsLogServer } from "../../ws/wsServer";
-import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation";
+import { LogEntry } from "../../types/index.js";
+import { IFileStorage } from "../../storage/fileStorage.js";
+import { IQueryIndex } from "../../storage/index.js";
+import { WsLogServer } from "../../ws/wsServer.js";
+import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation.js";
 
 export const createLogsRouter = (
   storage: IFileStorage,

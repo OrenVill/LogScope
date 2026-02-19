@@ -37,7 +37,11 @@ These scripts will:
    VITE_API_URL=http://localhost:3000  # Backend URL for frontend
    ```
 
-3. **Start the services in separate terminals:**
+
+## Strat the app
+
+
+1. **Start the services in separate terminals:**
 
    Terminal 1 - Backend:
    ```bash

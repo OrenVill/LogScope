@@ -1,4 +1,4 @@
-import { LogEntry, LogSummary } from "../types";
+import { LogEntry, LogSummary } from "../types/index.js";
 
 /**
  * In-memory query index for efficient log searches.

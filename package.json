@@ -5,5 +5,11 @@
   "description": "LogScope - simple log viewer for web apps",
   "author": "Oren",
   "license": "MIT",
-  "workspaces": ["server", "web"]
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "build:web": "npm --workspace=@logscope/web run build",
+    "build:server": "npm --workspace=@logscope/server run build",
+    "build": "npm run build:web && npm run build:server",
+    "start": "node server.js"
+  }
 }

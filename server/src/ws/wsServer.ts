@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { Server } from "http";
-import { LogEntry } from "../types";
+import { LogEntry } from "../types/index.js";
 
 /**
  * WebSocket message types

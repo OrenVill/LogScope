@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { LogEntry } from "../types";
+import { LogEntry } from "../types/index.js";
 
 /**
  * File-based storage for logs.
