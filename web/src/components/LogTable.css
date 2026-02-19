@@ -14,6 +14,25 @@
   padding: 1.5rem 1rem;
 }
 
+/* Scrollbar styling */
+.log-table-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.log-table-wrapper::-webkit-scrollbar-thumb {
+  background: #999;
+  border-radius: 4px;
+}
+
+.log-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
 .log-table-container {
   display: flex;
   flex-direction: column;
@@ -395,6 +414,29 @@
 [data-bs-theme="dark"] .log-table .badge {
   background-color: #444;
   color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .log-table-wrapper {
+  background: #252525;
+  border-color: #444;
+}
+
+[data-bs-theme="dark"] .log-table-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-bs-theme="dark"] .log-table-wrapper::-webkit-scrollbar-track {
+  background: #333;
+  border-radius: 4px;
+}
+
+[data-bs-theme="dark"] .log-table-wrapper::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 4px;
+}
+
+[data-bs-theme="dark"] .log-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #888;
 }
 
 [data-bs-theme="dark"] .log-content-display::-webkit-scrollbar-track {

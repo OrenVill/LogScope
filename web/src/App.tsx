@@ -155,12 +155,47 @@ function App() {
   return (
     <div className="app d-flex flex-column h-100" data-bs-theme={isDarkMode ? 'dark' : 'light'}>
       <header className="app-header bg-black text-white py-2 px-4 shadow">
-        <div className="container-fluid d-flex justify-content-start align-items-center">
+        <div className="container-fluid d-flex justify-content-between align-items-center">
           <div className="app-logo-container">
             <img src="/logo.svg" alt="LogScope Logo" className="app-logo" />
           </div>
           
-          <div className="ms-auto d-flex align-items-center gap-3">
+          <div className="d-flex flex-column gap-2">
+            {hasCritical && (
+              <div className="mb-0 d-flex align-items-center gap-3" style={{
+                backgroundColor: '#ff0000',
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '4px',
+                animation: 'pulse-alert 0.8s infinite',
+                fontWeight: 600
+              }}>
+                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🚨</div>
+                <div>
+                  <strong style={{ fontSize: '1.1rem' }}>CRITICAL ALERT</strong><br />
+                  <small>Critical logs detected in the system</small>
+                </div>
+              </div>
+            )}
+            {hasNoIssues && (
+              <div className="mb-0 d-flex align-items-center gap-3" style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '4px',
+                animation: 'pulse-success 1.2s infinite',
+                fontWeight: 600
+              }}>
+                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>✅</div>
+                <div>
+                  <strong style={{ fontSize: '1.1rem' }}>ALL SYSTEMS OPERATIONAL</strong><br />
+                  <small>No errors, warnings, or critical logs</small>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="d-flex align-items-center gap-3" style={{ marginLeft: 'auto' }}>
             <button
               className="btn btn-sm btn-outline-light"
               onClick={toggleDarkMode}
@@ -184,41 +219,6 @@ function App() {
                   {isRealTime ? '🟢 Live' : '⚪ Historical'}
                 </label>
               </div>
-            </div>
-
-            <div className="d-flex flex-column gap-2">
-              {hasCritical && (
-                <div className="mb-0 d-flex align-items-center gap-3" style={{
-                  backgroundColor: '#ff0000',
-                  color: 'white',
-                  padding: '12px 16px',
-                  borderRadius: '4px',
-                  animation: 'pulse-alert 0.8s infinite',
-                  fontWeight: 600
-                }}>
-                  <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🚨</div>
-                  <div>
-                    <strong style={{ fontSize: '1.1rem' }}>CRITICAL ALERT</strong><br />
-                    <small>Critical logs detected in the system</small>
-                  </div>
-                </div>
-              )}
-              {hasNoIssues && (
-                <div className="mb-0 d-flex align-items-center gap-3" style={{
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  padding: '12px 16px',
-                  borderRadius: '4px',
-                  animation: 'pulse-success 1.2s infinite',
-                  fontWeight: 600
-                }}>
-                  <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>✅</div>
-                  <div>
-                    <strong style={{ fontSize: '1.1rem' }}>ALL SYSTEMS OPERATIONAL</strong><br />
-                    <small>No errors, warnings, or critical logs</small>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

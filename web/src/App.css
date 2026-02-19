@@ -25,8 +25,12 @@
 
 .app-container {
   min-height: calc(100vh - 120px);
+  background-color: var(--bs-light);
 }
 
+[data-bs-theme="dark"] .app-container {
+  background-color: var(--bs-black);
+}
 .sidebar {
   min-width: 280px;
   max-width: 380px;
@@ -181,6 +185,24 @@ button:hover {
 
 [data-bs-theme="dark"] .main-content {
   color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-bs-theme="dark"] .main-content::-webkit-scrollbar-track {
+  background: #333;
+  border-radius: 4px;
+}
+
+[data-bs-theme="dark"] .main-content::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 4px;
+}
+
+[data-bs-theme="dark"] .main-content::-webkit-scrollbar-thumb:hover {
+  background: #888;
 }
 
 [data-bs-theme="dark"] .sidebar {
