@@ -35,6 +35,16 @@ export interface IQueryIndex {
   addToIndex(log: LogEntry): void;
 
   /**
+   * Remove log entries from the index by their event IDs
+   */
+  removeFromIndex(eventIds: string[]): void;
+
+  /**
+   * Clear all entries from the index. Optionally keep specific event IDs.
+   */
+  clearIndex(keepEventIds?: string[]): void;
+
+  /**
    * Get a log by ID from the index
    */
   getById(eventId: string): LogEntry | null;
@@ -85,6 +95,28 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
 
       index.set(log.eventId, log);
       allLogs.push(log);
+    },
+
+    removeFromIndex: (eventIds: string[]) => {
+      const idSet = new Set(eventIds);
+      for (const id of idSet) {
+        index.delete(id);
+      }
+      allLogs = allLogs.filter((log) => !idSet.has(log.eventId));
+    },
+
+    clearIndex: (keepEventIds?: string[]) => {
+      if (!keepEventIds || keepEventIds.length === 0) {
+        index.clear();
+        allLogs = [];
+      } else {
+        const keepSet = new Set(keepEventIds);
+        allLogs = allLogs.filter((log) => keepSet.has(log.eventId));
+        index.clear();
+        for (const log of allLogs) {
+          index.set(log.eventId, log);
+        }
+      }
     },
 
     getById: (eventId: string) => {
@@ -155,6 +187,13 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
       const offset = filters.offset || 0;
       const limit = filters.limit || 100;
       const paginatedResults = results.slice(offset, offset + limit);
+
+      // Log pagination debug info
+      if (offset === 0) {
+        console.log(
+          `[Query] offset=${offset}, limit=${limit}, indexSize=${allLogs.length}, filteredTotal=${total}, returned=${paginatedResults.length}`
+        );
+      }
 
       // Convert to summaries if lightweight mode is enabled
       const finalResults = filters.lightweight

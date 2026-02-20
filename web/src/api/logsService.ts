@@ -245,6 +245,32 @@ export class LogsApiClient {
   }
 
   /**
+   * Pin a log entry so it is protected from automatic deletion
+   */
+  async starLog(eventId: string): Promise<void> {
+    await fetchWithRetry(`${this.baseUrl}/api/logs/${eventId}/star`, { method: "POST" });
+  }
+
+  /**
+   * Unpin a log entry so it becomes eligible for automatic deletion again
+   */
+  async unstarLog(eventId: string): Promise<void> {
+    await fetchWithRetry(`${this.baseUrl}/api/logs/${eventId}/star`, { method: "DELETE" });
+  }
+
+  /**
+   * Delete all log entries.
+   * @param keepStarred - when true, pinned logs are preserved
+   */
+  async clearAllLogs(keepStarred = false): Promise<{ deleted: number; keptStarred: number }> {
+    const params = keepStarred ? "?keepStarred=true" : "";
+    const response = await fetchWithRetry(`${this.baseUrl}/api/logs/all${params}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to clear logs");
+    return data.data as { deleted: number; keptStarred: number };
+  }
+
+  /**
    * Connect to WebSocket for real-time log streaming
    * Returns WebSocket instance for manual control, or null if connection fails
    * Includes automatic reconnection with exponential backoff
@@ -269,6 +295,8 @@ export class LogsApiClient {
     // Mark that a connect attempt has started and allow reconnection loop (can be turned off via closeWebSocket)
     this._isConnecting = true;
     this._shouldReconnect = true;
+    // Reset the reconnect counter so a fresh manual connection always has full retry budget
+    this._reconnectAttempts = 0;
 
     const createConnection = (): WebSocket | null => {
       try {
@@ -323,6 +351,8 @@ export class LogsApiClient {
         ws.onclose = () => {
           // clear the stored reference for this closed socket
           if (this._ws === ws) this._ws = null;
+          // A closed socket is no longer "connecting"
+          this._isConnecting = false;
 
           // don't attempt to reconnect if caller requested shutdown
           if (!this._shouldReconnect) return;
@@ -368,6 +398,8 @@ export class LogsApiClient {
    */
   closeWebSocket(): void {
     this._shouldReconnect = false;
+    this._isConnecting = false; // always reset — prevents the guard from blocking the next connect call
+
     if (this._reconnectTimeout) {
       clearTimeout(this._reconnectTimeout);
       this._reconnectTimeout = null;
@@ -375,20 +407,17 @@ export class LogsApiClient {
 
     if (!this._ws) return;
 
-    try {
-      if (this._ws.readyState === WebSocket.OPEN) {
-        this._ws.close();
-      } else {
-        try { this._ws.onopen = null } catch { /* ignore */ }
-        try { this._ws.onmessage = null } catch { /* ignore */ }
-        try { this._ws.onerror = null } catch { /* ignore */ }
-        try { this._ws.onclose = null } catch { /* ignore */ }
-      }
-    } catch (err) {
-      /* ignore */
-    }
+    const wsToClose = this._ws;
+    this._ws = null; // clear reference before closing so no handler can observe a stale ref
 
-    this._ws = null;
+    // Detach all handlers first so closing doesn't trigger a reconnect loop
+    try { wsToClose.onopen = null } catch { /* ignore */ }
+    try { wsToClose.onmessage = null } catch { /* ignore */ }
+    try { wsToClose.onerror = null } catch { /* ignore */ }
+    try { wsToClose.onclose = null } catch { /* ignore */ }
+
+    // Close regardless of readyState (works for CONNECTING, OPEN, and CLOSING)
+    try { wsToClose.close() } catch { /* ignore */ }
   }
 }
 

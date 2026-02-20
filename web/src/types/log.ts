@@ -23,6 +23,8 @@ export interface LogEntry {
   data?: string | Record<string, unknown>;
   source: LogSource;
   correlation: Correlation;
+  /** Set by the server at query time. True if this log is pinned from auto-deletion. */
+  starred?: boolean;
 }
 
 /**
@@ -39,4 +41,6 @@ export interface LogSummary {
     runtime: "node" | "browser";
     serviceName: string;
   };
+  /** Set by the server at query time. True if this log is pinned from auto-deletion. */
+  starred?: boolean;
 }
