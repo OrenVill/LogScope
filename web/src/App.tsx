@@ -15,6 +15,8 @@ interface ErrorState {
 function App() {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<ErrorState | null>(null)
   const [isRealTime, setIsRealTime] = useState(true)
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -26,6 +28,8 @@ function App() {
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const PAGE_SIZE = 20
   const wsRef = useRef<WebSocket | null>(null)
 
   // Ensure logs are unique by eventId (dedupe helper)
@@ -39,13 +43,32 @@ function App() {
   }
 
   // Load logs from API
-  const loadLogs = useCallback(async (filters?: SearchFilters) => {
-    setLoading(true)
-    setError(null)
+  // loadLogs: when reset=true we replace the list (initial search/filter); when false we append (load more)
+  const loadLogs = useCallback(async (filters?: SearchFilters, reset: boolean = true) => {
+    if (reset) {
+      setLoading(true)
+      setError(null)
+      setOffset(0)
+    } else {
+      setLoadingMore(true)
+    }
+
     try {
-      const response = await logsApi.searchLogs(filters || {}, { limit: 100, offset: 0 })
+      const currentOffset = reset ? 0 : offset
+      const response = await logsApi.searchLogs(filters || {}, { limit: PAGE_SIZE, offset: currentOffset })
+
       if (response.success) {
-        setLogs(dedupeByEventId(response.data || []))
+        const returned = response.data || []
+
+        if (reset) {
+          setLogs(dedupeByEventId(returned))
+        } else {
+          setLogs(prev => dedupeByEventId([...prev, ...returned]))
+        }
+
+        const newTotal = (reset ? returned.length : offset + returned.length)
+        setOffset(newTotal)
+        setHasMore(typeof response.total === 'number' ? response.total > newTotal : returned.length === PAGE_SIZE)
       } else {
         const isRateLimit = response.errorCode === 'RATE_LIMIT_EXCEEDED'
         setError({
@@ -61,13 +84,15 @@ function App() {
       })
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
-  }, [])
+  }, [offset])
 
-  // Load logs on mount
+  // Load initial page on mount
   useEffect(() => {
-    loadLogs()
-  }, [loadLogs])
+    loadLogs(undefined, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Auto-connect WebSocket if real-time mode is enabled
   useEffect(() => {
@@ -77,6 +102,12 @@ function App() {
       disconnectWebSocket()
     }
   }, [isRealTime])
+
+  // Load more logs (called from UI / LogTable)
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
+    await loadLogs(undefined, false)
+  }
 
   // Check for critical logs and issues
   useEffect(() => {
@@ -113,9 +144,11 @@ function App() {
     wsRef.current = logsApi.connectWebSocket(
       (log: LogEntry) => {
         setLogs((prev) => {
-          // remove any existing entry with same eventId then prepend the new one
+          // remove any existing entry with same eventId then append the new one at the bottom
           const filtered = prev.filter(p => p.eventId !== log.eventId)
-          return [log, ...filtered].slice(0, 100)
+          const appended = [...filtered, log]
+          // keep the most recent 100 entries in memory
+          return appended.slice(-100)
         })
       },
       (error: Error) => {
@@ -312,7 +345,15 @@ function App() {
             </button>
           </div>
 
-          <LogTable logs={filteredLogs} loading={loading} sortBy={sortBy} onSort={setSortBy} />
+          <LogTable
+            logs={filteredLogs}
+            loading={loading}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            sortBy={sortBy}
+            onSort={setSortBy}
+            onLoadMore={loadMore}
+          />
         </main>
       </div>
     </div>
