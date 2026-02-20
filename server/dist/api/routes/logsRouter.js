@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation.js";
-export const createLogsRouter = (storage, queryIndex, wsServer) => {
+export const createLogsRouter = (storage, queryIndex, wsServer, starredStorage) => {
     const router = Router();
     /**
      * POST /api/logs/collect
@@ -90,9 +90,13 @@ export const createLogsRouter = (storage, queryIndex, wsServer) => {
                 offset: parsedOffset,
                 lightweight: isLightweight,
             });
+            // Enrich each log with its starred status
+            const enriched = starredStorage
+                ? result.logs.map((log) => ({ ...log, starred: starredStorage.isStarred(log.eventId) }))
+                : result.logs;
             res.json({
                 success: true,
-                data: result.logs,
+                data: enriched,
                 total: result.total,
                 limit: parsedLimit,
                 offset: parsedOffset,
@@ -108,32 +112,75 @@ export const createLogsRouter = (storage, queryIndex, wsServer) => {
         }
     });
     /**
-     * GET /api/logs/:eventId
-     * Get full log details by event ID
+     * DELETE /api/logs/all
+     * Clear all log entries.
+     * Query param: keepStarred=true (default false) - keep pinned logs
      */
-    router.get("/:eventId", async (req, res) => {
+    router.delete("/all", async (req, res) => {
         try {
-            const { eventId } = req.params;
-            const log = queryIndex.getById(eventId);
-            if (!log) {
-                return res.status(404).json({
-                    success: false,
-                    error: "Log not found",
-                    errorCode: "NOT_FOUND",
-                });
+            const keepStarred = req.query.keepStarred === "true";
+            const starredIds = keepStarred && starredStorage ? starredStorage.getAll() : undefined;
+            const { backendDeleted, frontendDeleted } = await storage.clearLogs(starredIds);
+            const totalDeleted = backendDeleted + frontendDeleted;
+            const keepIds = starredIds ? [...starredIds] : [];
+            queryIndex.clearIndex(keepIds.length > 0 ? keepIds : undefined);
+            // If starred logs were also deleted, clean up starred.json
+            if (!keepStarred && starredStorage) {
+                await starredStorage.clear();
             }
             res.json({
                 success: true,
-                data: log,
+                data: {
+                    deleted: totalDeleted,
+                    backendDeleted,
+                    frontendDeleted,
+                    keptStarred: keepIds.length,
+                },
             });
         }
         catch (error) {
-            console.error("Error fetching log:", error);
+            console.error("Error clearing logs:", error);
             res.status(500).json({
                 success: false,
-                error: "Failed to fetch log",
+                error: "Failed to clear logs",
                 errorCode: "SERVER_ERROR",
             });
+        }
+    });
+    /**
+     * POST /api/logs/:eventId/star
+     * Pin a log entry so it is protected from automatic deletion
+     */
+    router.post("/:eventId/star", async (req, res) => {
+        try {
+            const { eventId } = req.params;
+            if (!starredStorage) {
+                return res.status(503).json({ success: false, error: "Starred storage not available", errorCode: "UNAVAILABLE" });
+            }
+            await starredStorage.add(eventId);
+            res.json({ success: true, data: { eventId, starred: true } });
+        }
+        catch (error) {
+            console.error("Error starring log:", error);
+            res.status(500).json({ success: false, error: "Failed to star log", errorCode: "SERVER_ERROR" });
+        }
+    });
+    /**
+     * DELETE /api/logs/:eventId/star
+     * Unpin a log entry so it becomes eligible for automatic deletion again
+     */
+    router.delete("/:eventId/star", async (req, res) => {
+        try {
+            const { eventId } = req.params;
+            if (!starredStorage) {
+                return res.status(503).json({ success: false, error: "Starred storage not available", errorCode: "UNAVAILABLE" });
+            }
+            await starredStorage.remove(eventId);
+            res.json({ success: true, data: { eventId, starred: false } });
+        }
+        catch (error) {
+            console.error("Error unstarring log:", error);
+            res.status(500).json({ success: false, error: "Failed to unstar log", errorCode: "SERVER_ERROR" });
         }
     });
     /**
@@ -220,6 +267,38 @@ export const createLogsRouter = (storage, queryIndex, wsServer) => {
             res.status(500).json({
                 success: false,
                 error: "Failed to check health",
+                errorCode: "SERVER_ERROR",
+            });
+        }
+    });
+    /**
+     * GET /api/logs/:eventId
+     * Get full log details by event ID
+     * IMPORTANT: This must be the last GET route to avoid shadowing other paths
+     */
+    router.get("/:eventId", async (req, res) => {
+        try {
+            const { eventId } = req.params;
+            const log = queryIndex.getById(eventId);
+            if (!log) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Log not found",
+                    errorCode: "NOT_FOUND",
+                });
+            }
+            res.json({
+                success: true,
+                data: starredStorage
+                    ? { ...log, starred: starredStorage.isStarred(log.eventId) }
+                    : log,
+            });
+        }
+        catch (error) {
+            console.error("Error fetching log:", error);
+            res.status(500).json({
+                success: false,
+                error: "Failed to fetch log",
                 errorCode: "SERVER_ERROR",
             });
         }

@@ -37,6 +37,27 @@ export const createQueryIndex = (maxSize = 10000) => {
             index.set(log.eventId, log);
             allLogs.push(log);
         },
+        removeFromIndex: (eventIds) => {
+            const idSet = new Set(eventIds);
+            for (const id of idSet) {
+                index.delete(id);
+            }
+            allLogs = allLogs.filter((log) => !idSet.has(log.eventId));
+        },
+        clearIndex: (keepEventIds) => {
+            if (!keepEventIds || keepEventIds.length === 0) {
+                index.clear();
+                allLogs = [];
+            }
+            else {
+                const keepSet = new Set(keepEventIds);
+                allLogs = allLogs.filter((log) => keepSet.has(log.eventId));
+                index.clear();
+                for (const log of allLogs) {
+                    index.set(log.eventId, log);
+                }
+            }
+        },
         getById: (eventId) => {
             return index.get(eventId) || null;
         },

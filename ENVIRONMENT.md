@@ -47,6 +47,32 @@ Then access the UI at `http://localhost:5174`
 - **Behavior:** When exceeded, oldest logs are removed (FIFO)
 - **Example:** `MAX_INDEX_SIZE=50000 npm run dev`
 
+### Auto-Cleanup
+
+**`CLEANUP_INTERVAL_MS`**
+- **Type:** `integer` (milliseconds)
+- **Default:** `300000` (5 minutes)
+- **Description:** How often the auto-cleanup service runs
+- **Example:** `CLEANUP_INTERVAL_MS=60000 npm run dev`
+
+**`LOG_MAX_AGE_MS`**
+- **Type:** `integer` (milliseconds)
+- **Default:** `3600000` (1 hour)
+- **Description:** Logs older than this value are automatically deleted. Starred (pinned) logs are exempt.
+- **Example:** `LOG_MAX_AGE_MS=1800000 npm run dev` (30 minutes)
+
+**`LOG_MAX_TOTAL`**
+- **Type:** `integer`
+- **Default:** `500`
+- **Description:** Combined log count (backend + frontend) that triggers a capacity cleanup. When exceeded, the oldest `LOG_DELETE_COUNT` non-starred logs are removed.
+- **Example:** `LOG_MAX_TOTAL=1000 npm run dev`
+
+**`LOG_DELETE_COUNT`**
+- **Type:** `integer`
+- **Default:** `100`
+- **Description:** Number of oldest logs to delete when the `LOG_MAX_TOTAL` capacity limit is hit.
+- **Example:** `LOG_DELETE_COUNT=200 npm run dev`
+
 ### Node.js Environment
 
 **`NODE_ENV`**

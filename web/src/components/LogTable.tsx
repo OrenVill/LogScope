@@ -13,6 +13,7 @@ interface LogTableProps {
   sortBy: "timestamp" | "level";
   onSort: (sortBy: "timestamp" | "level") => void;
   onLoadMore?: () => void;
+  totalCount?: number;
 }
 
 const levelColors: Record<LogLevel, string> = {
@@ -51,11 +52,15 @@ export const LogTable: React.FC<LogTableProps> = ({
   sortBy,
   onSort,
   onLoadMore,
+  totalCount = 0,
 }) => {
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [fullLogs, setFullLogs] = useState<Map<string, LogEntry>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  const [localStarred, setLocalStarred] = useState<Set<string>>(
+    () => new Set(logs.filter((l) => l.starred).map((l) => l.eventId))
+  );
   const sentinelRef = React.useRef<HTMLDivElement | null>(null);
 
   // Keep refs for latest prop values so observer callback has current state
@@ -63,6 +68,17 @@ export const LogTable: React.FC<LogTableProps> = ({
   const hasMoreRef = React.useRef<boolean>(false);
   React.useEffect(() => { loadingMoreRef.current = !!loadingMore }, [loadingMore]);
   React.useEffect(() => { hasMoreRef.current = !!hasMore }, [hasMore]);
+
+  // Merge server-side starred state into local state whenever the logs list updates
+  React.useEffect(() => {
+    setLocalStarred((prev) => {
+      const next = new Set(prev);
+      for (const log of logs) {
+        if (log.starred) next.add(log.eventId);
+      }
+      return next;
+    });
+  }, [logs]);
 
   // IntersectionObserver -> call onLoadMore when sentinel becomes visible
   React.useEffect(() => {
@@ -86,6 +102,34 @@ export const LogTable: React.FC<LogTableProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, [onLoadMore]);
+
+  const toggleStar = async (e: React.MouseEvent, log: Log) => {
+    e.stopPropagation();
+    const wasStarred = localStarred.has(log.eventId);
+    // Optimistic update
+    setLocalStarred((prev) => {
+      const next = new Set(prev);
+      if (wasStarred) next.delete(log.eventId);
+      else next.add(log.eventId);
+      return next;
+    });
+    try {
+      if (wasStarred) {
+        await logsApi.unstarLog(log.eventId);
+      } else {
+        await logsApi.starLog(log.eventId);
+      }
+    } catch (error) {
+      // Revert on failure
+      setLocalStarred((prev) => {
+        const next = new Set(prev);
+        if (wasStarred) next.add(log.eventId);
+        else next.delete(log.eventId);
+        return next;
+      });
+      console.error("Failed to update star:", error);
+    }
+  };
 
   const toggleExpanded = async (log: Log) => {
     const wasExpanded = expandedRows.has(log.eventId);
@@ -210,13 +254,14 @@ export const LogTable: React.FC<LogTableProps> = ({
           <h2 className="h4 mb-1">📋 Logs</h2>
           <p className="text-muted small mb-0">Live structured logging and inspection</p>
         </div>
-        <span className="badge bg-primary fs-6 px-3 py-2">{logs.length} logs</span>
+        <span className="badge bg-primary fs-6 px-3 py-2">{totalCount} total</span>
       </div>
 
       <div className="log-table-container card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden">
         <table className="table table-hover table-sm">
           <thead className="table-light">
             <tr>
+              <th style={{ width: "32px" }} title="Pin log to protect from auto-deletion">⭐</th>
               <th style={{ cursor: "pointer", width: "40px" }}>•</th>
               <th style={{ cursor: "pointer", width: "30px" }}>Level</th>
               <th style={{ cursor: "pointer" }} onClick={() => toggleSort("timestamp")}>
@@ -234,6 +279,16 @@ export const LogTable: React.FC<LogTableProps> = ({
                   title={`ID: ${log.eventId}`}
                   className={`log-row-${log.level}`}
                 >
+                  <td className="text-center">
+                    <button
+                      className="star-btn"
+                      title={localStarred.has(log.eventId) ? "Unpin (log will be auto-deleted)" : "Pin (protect from auto-deletion)"}
+                      onClick={(e) => toggleStar(e, log)}
+                      aria-pressed={localStarred.has(log.eventId)}
+                    >
+                      {localStarred.has(log.eventId) ? "⭐" : "☆"}
+                    </button>
+                  </td>
                   <td className="text-center" style={{ cursor: "pointer" }} onClick={() => toggleExpanded(log)}>
                     <span style={{ fontSize: "1rem" }}>
                       {expandedRows.has(log.eventId) ? "▼" : "▶"}
@@ -271,7 +326,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                 </tr>
                 {expandedRows.has(log.eventId) && (
                   <tr className={`log-row-expanded log-row-${log.level}`}>
-                    <td colSpan={6} className="p-3">
+                    <td colSpan={7} className="p-3">
                       {loadingDetails.has(log.eventId) ? (
                         <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100px" }}>
                           <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
