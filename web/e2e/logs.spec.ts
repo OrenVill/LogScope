@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 // Tests use API base URL from environment when available (TEST_API_URL or VITE_API_URL),
@@ -10,7 +10,7 @@ const API_BASE = process.env.TEST_API_URL || process.env.VITE_API_URL || `http:/
 
 type WaitOptions = { timeout?: number }
 
-async function waitForWsClients(page: any, apiBase: string, minClients = 1, opts?: WaitOptions) {
+async function waitForWsClients(page: Page, apiBase: string, minClients = 1, opts?: WaitOptions) {
   const timeout = opts?.timeout ?? 5000
   const start = Date.now()
   while (Date.now() - start < timeout) {
@@ -78,12 +78,11 @@ test('real-time: new log appears when posted to backend', async ({ page }) => {
   // Ensure the page has established a WebSocket connection (otherwise broadcasts won't be received)
   try {
     await waitForWsClients(page, API_BASE, 1, { timeout: 5000 })
-  } catch (err) {
+  } catch {
     test.skip('WebSocket client not connected')
   }
 
-  // Read current top-row message (if any)
-  const topMessageLocator = page.locator('tbody tr').first().locator('td').nth(4)
+  
 
   // Post a new unique log
   const unique = `e2e-msg-${Date.now()}`
@@ -107,7 +106,7 @@ test('real-time: new log appears when posted to backend', async ({ page }) => {
     await page.waitForFunction((msg) => {
       return !!Array.from(document.querySelectorAll('tbody tr td:nth-child(5)')).find(el => el.textContent && el.textContent.includes(msg))
     }, unique, { timeout: 10000 })
-  } catch (err) {
+  } catch {
     sawInUi = false
   }
 
@@ -116,7 +115,8 @@ test('real-time: new log appears when posted to backend', async ({ page }) => {
     const searchRes = await page.request.get(`${API_BASE}/api/logs/search?text=${encodeURIComponent(unique)}`)
     const searchJson = await searchRes.json()
     expect(searchJson.success).toBeTruthy()
-    expect(Array.isArray(searchJson.data) && searchJson.data.some((l: any) => l.message === unique)).toBeTruthy()
+    const found = Array.isArray(searchJson.data) && (searchJson.data as Array<{ message?: string }>).some((l) => l.message === unique)
+    expect(found).toBeTruthy()
 
     // Use the UI search input to bring the log into the table
     await page.fill('input[placeholder="Search in content"]', unique)
@@ -194,7 +194,7 @@ test('copy data button places JSON on clipboard', async ({ page }) => {
 
   try {
     await waitForWsClients(page, API_BASE, 1, { timeout: 5000 })
-  } catch (err) {
+  } catch {
     test.skip('WebSocket client not connected')
   }
 
@@ -221,7 +221,7 @@ test('copy data button places JSON on clipboard', async ({ page }) => {
     await page.waitForFunction((msg) => {
       return !!Array.from(document.querySelectorAll('tbody tr td:nth-child(5)')).find(el => el.textContent && el.textContent.includes(msg))
     }, unique, { timeout: 10000 })
-  } catch (err) {
+  } catch {
     foundInUi = false
   }
 
@@ -229,7 +229,8 @@ test('copy data button places JSON on clipboard', async ({ page }) => {
     const searchRes = await page.request.get(`${API_BASE}/api/logs/search?text=${encodeURIComponent(unique)}`)
     const searchJson = await searchRes.json()
     expect(searchJson.success).toBeTruthy()
-    expect(Array.isArray(searchJson.data) && searchJson.data.some((l: any) => l.message === unique)).toBeTruthy()
+    const found = Array.isArray(searchJson.data) && (searchJson.data as Array<{ message?: string }>).some((l) => l.message === unique)
+    expect(found).toBeTruthy()
 
     // Use UI search to surface result
     await page.fill('input[placeholder="Search in content"]', unique)
