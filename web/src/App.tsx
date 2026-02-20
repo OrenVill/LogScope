@@ -29,6 +29,9 @@ function App() {
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const [offset, setOffset] = useState(0)
+  const offsetRef = useRef<number>(offset)
+  useEffect(() => { offsetRef.current = offset }, [offset])
+
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | undefined>(undefined)
   const PAGE_SIZE = 20
   const wsRef = useRef<WebSocket | null>(null)
@@ -45,18 +48,22 @@ function App() {
 
   // Load logs from API
   // loadLogs: when reset=true we replace the list (initial search/filter); when false we append (load more)
+  // NOTE: use a ref for `offset` so `loadLogs` identity stays stable and doesn't re-trigger
+  // FilterPanel.auto-apply via changing onSearch prop (prevents feedback loop).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadLogs = useCallback(async (filters?: SearchFilters, reset: boolean = true) => {
       if (reset) {
       setLoading(true)
       setError(null)
       setOffset(0)
+      offsetRef.current = 0
       setCurrentFilters(filters)
     } else {
       setLoadingMore(true)
     }
 
     try {
-      const currentOffset = reset ? 0 : offset
+      const currentOffset = reset ? 0 : offsetRef.current
       const response = await logsApi.searchLogs(filters || {}, { limit: PAGE_SIZE, offset: currentOffset })
 
       if (response.success) {
@@ -68,8 +75,9 @@ function App() {
           setLogs(prev => dedupeByEventId([...prev, ...returned]))
         }
 
-        const newTotal = (reset ? returned.length : offset + returned.length)
+        const newTotal = (reset ? returned.length : offsetRef.current + returned.length)
         setOffset(newTotal)
+        offsetRef.current = newTotal
         setHasMore(typeof response.total === 'number' ? response.total > newTotal : returned.length === PAGE_SIZE)
       } else {
         const isRateLimit = response.errorCode === 'RATE_LIMIT_EXCEEDED'
@@ -88,7 +96,7 @@ function App() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [offset])
+  }, [])
 
   // Load initial page on mount
   useEffect(() => {
@@ -128,8 +136,8 @@ function App() {
     return runtimeMatch && levelMatch
   })
 
-  // Connect to WebSocket
-  const connectWebSocket = (filters?: { level?: string; subject?: string }) => {
+  // Connect to WebSocket (stable identity to avoid re-creating handlers)
+  const connectWebSocket = useCallback((filters?: { level?: string; subject?: string }) => {
     // If a socket is already open or connecting, don't recreate it (avoids StrictMode double-invoke noise)
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return
@@ -173,10 +181,13 @@ function App() {
       wsRef.current.addEventListener('open', () => { ignoreInitialErrors = false })
       setTimeout(() => { ignoreInitialErrors = false }, 2000)
     }
-  }
+  }, [])
 
-  // Disconnect WebSocket
-  const disconnectWebSocket = () => {
+  // Disconnect WebSocket (stable identity)
+  const disconnectWebSocket = useCallback(() => {
+    // Ensure the API client's internal reconnect loop is stopped first
+    try { logsApi.closeWebSocket() } catch { /* ignore */ }
+
     if (!wsRef.current) return
 
     const cur = wsRef.current
@@ -197,7 +208,29 @@ function App() {
     }
 
     wsRef.current = null
-  }
+  }, [])
+
+  // Memoized handler passed to FilterPanel to prevent auto-apply from retriggering
+  const handleSearch = useCallback((f?: SearchFilters) => {
+    loadLogs(f, true);
+
+    if (!isRealTime) return;
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'subscribe', filters: f }));
+        return;
+      } catch (err) {
+        // fallback to reconnect if send fails
+        disconnectWebSocket();
+        connectWebSocket(f);
+        return;
+      }
+    }
+
+    // if no socket exists, create one with filters
+    connectWebSocket(f);
+  }, [isRealTime, loadLogs, connectWebSocket, disconnectWebSocket]);
 
   // Toggle real-time mode
   const toggleRealTime = (enabled: boolean) => {
@@ -241,7 +274,7 @@ function App() {
 
   return (
     <div className="app d-flex flex-column h-100" data-bs-theme={isDarkMode ? 'dark' : 'light'}>
-      <header className="app-header bg-black text-white py-2 px-4 shadow">
+      <header className="app-header bg-dark text-white py-2 px-4 shadow">
         <div className="container-fluid d-flex justify-content-between align-items-center">
           <div className="app-logo-container">
             <h1 className="visually-hidden">LogScope</h1>
@@ -314,7 +347,8 @@ function App() {
 
       <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3">
         <aside tabIndex={0} className="sidebar bg-body rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
-          <FilterPanel onSearch={(f) => { loadLogs(f, true); if (isRealTime) { disconnectWebSocket(); connectWebSocket(f); } }} isRealTime={isRealTime} />
+          {/* Memoized search handler to avoid re-creating function on every render */}
+          <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
         </aside>
 
         <main className="main-content bg-body rounded shadow-sm flex-grow-1 overflow-auto p-4">

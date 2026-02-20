@@ -66,23 +66,40 @@ async function fetchWithRetry(
  */
 export class LogsApiClient {
   baseUrl: string;
+  // Internal WS state to prevent duplicate reconnect loops and allow clean shutdown
+  private _ws: WebSocket | null = null;
+  private _isConnecting = false; // prevents concurrent connection attempts
+  private _reconnectAttempts = 0;
+  private _reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _shouldReconnect = true;
 
   constructor(baseUrl?: string) {
-    // Use provided baseUrl, then VITE_API_URL env, then auto-detect same-origin.
+    // Use provided baseUrl, then VITE_API_URL env, then (dev) a sensible default backend,
+    // finally fallback to same-origin. This makes local `npm run dev` work without
+    // requiring the developer to export VITE_API_URL every time.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const viteEnv = (import.meta as any).env || {}
+
     if (baseUrl) {
       this.baseUrl = baseUrl;
       return;
     }
 
-    // Vite-provided env override (set at build time)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const viteUrl = (import.meta as any).env?.VITE_API_URL;
-    if (viteUrl) {
-      this.baseUrl = viteUrl;
+    // Respect explicit VITE_API_URL when provided (CI / playwright & explicit runs)
+    if (viteEnv.VITE_API_URL) {
+      this.baseUrl = viteEnv.VITE_API_URL;
       return;
     }
 
-    // Default: use same origin as the page (works when frontend is served by the backend)
+    // If running in Vite dev and no VITE_API_URL set, point at the default backend
+    // (localhost:8000) so WebSocket/API calls work out of the box.
+    if (viteEnv.DEV) {
+      const defaultBackend = viteEnv.VITE_API_PROXY || 'http://localhost:8000'
+      this.baseUrl = defaultBackend;
+      return;
+    }
+
+    // Production / fallback: use same origin (frontend served from backend)
     const origin = window.location.origin;
     this.baseUrl = origin;
   }
@@ -237,9 +254,21 @@ export class LogsApiClient {
     onError?: (error: Error) => void,
     filters?: { level?: string; subject?: string }
   ): WebSocket | null {
-    let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // If a connection attempt is already in progress, return the pending ws
+    if (this._isConnecting) {
+      return this._ws;
+    }
+
+    // Reuse existing instance if already open/connecting
+    if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) {
+      return this._ws;
+    }
+
+    // Mark that a connect attempt has started and allow reconnection loop (can be turned off via closeWebSocket)
+    this._isConnecting = true;
+    this._shouldReconnect = true;
 
     const createConnection = (): WebSocket | null => {
       try {
@@ -247,17 +276,30 @@ export class LogsApiClient {
         const host = new URL(this.baseUrl).host;
         const ws = new WebSocket(`${protocol}://${host}/ws`);
 
+        // store instance so callers can close/inspect it and so we can cancel reconnects
+        this._ws = ws;
+
         ws.onopen = () => {
-          reconnectAttempts = 0; // Reset on successful connection
-          
+          // connection established -> clear connecting flag and reset reconnect state
+          this._isConnecting = false;
+          this._reconnectAttempts = 0;
+          if (this._reconnectTimeout) {
+            clearTimeout(this._reconnectTimeout);
+            this._reconnectTimeout = null;
+          }
+
           // Subscribe with filters if provided
           if (filters) {
-            ws.send(
-              JSON.stringify({
-                type: "subscribe",
-                filters,
-              })
-            );
+            try {
+              ws.send(
+                JSON.stringify({
+                  type: "subscribe",
+                  filters,
+                })
+              );
+            } catch (err) {
+              console.error('Failed to send subscribe message:', err);
+            }
           }
         };
 
@@ -279,18 +321,23 @@ export class LogsApiClient {
         };
 
         ws.onclose = () => {
-          // Attempt to reconnect with exponential backoff
-          if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++;
+          // clear the stored reference for this closed socket
+          if (this._ws === ws) this._ws = null;
+
+          // don't attempt to reconnect if caller requested shutdown
+          if (!this._shouldReconnect) return;
+
+          if (this._reconnectAttempts < maxReconnectAttempts) {
+            this._reconnectAttempts++;
             const delayMs = Math.min(
-              1000 * Math.pow(1.5, reconnectAttempts - 1),
+              1000 * Math.pow(1.5, this._reconnectAttempts - 1),
               30000
             );
             // Clear any existing timeout before setting a new one
-            if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            reconnectTimeout = setTimeout(() => {
-              console.log(`Reconnecting WebSocket (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
-              createConnection();
+            if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout);
+            this._reconnectTimeout = setTimeout(() => {
+              console.log(`Reconnecting WebSocket (attempt ${this._reconnectAttempts}/${maxReconnectAttempts})...`);
+              if (this._shouldReconnect) createConnection();
             }, delayMs);
           } else {
             const error = new Error("WebSocket reconnection failed after maximum attempts");
@@ -301,6 +348,8 @@ export class LogsApiClient {
 
         return ws;
       } catch (error) {
+        // clear in-progress flag so callers can retry later
+        this._isConnecting = false;
         const wsError = new Error(`Failed to connect WebSocket: ${(error as Error).message}`);
         if (onError) onError(wsError);
         console.error("WebSocket connection error:", wsError);
@@ -308,7 +357,38 @@ export class LogsApiClient {
       }
     };
 
-    return createConnection();
+    const ws = createConnection();
+    // if the createConnection returned null immediately, clear connecting flag
+    if (!ws) this._isConnecting = false;
+    return ws;
+  }
+
+  /**
+   * Stop and cleanly close any WebSocket managed by the client and cancel reconnects
+   */
+  closeWebSocket(): void {
+    this._shouldReconnect = false;
+    if (this._reconnectTimeout) {
+      clearTimeout(this._reconnectTimeout);
+      this._reconnectTimeout = null;
+    }
+
+    if (!this._ws) return;
+
+    try {
+      if (this._ws.readyState === WebSocket.OPEN) {
+        this._ws.close();
+      } else {
+        try { this._ws.onopen = null } catch { /* ignore */ }
+        try { this._ws.onmessage = null } catch { /* ignore */ }
+        try { this._ws.onerror = null } catch { /* ignore */ }
+        try { this._ws.onclose = null } catch { /* ignore */ }
+      }
+    } catch (err) {
+      /* ignore */
+    }
+
+    this._ws = null;
   }
 }
 

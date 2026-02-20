@@ -2,9 +2,9 @@ import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 // Tests use API base URL from environment when available (TEST_API_URL or VITE_API_URL),
-// otherwise default to http://localhost:3000. This prevents skips when backend runs on a
+// otherwise default to http://localhost:8000. This prevents skips when backend runs on a
 // non-standard port (e.g. PORT=8000).
-const API_BASE = process.env.TEST_API_URL || process.env.VITE_API_URL || `http://localhost:${process.env.PORT || 3000}`
+const API_BASE = process.env.TEST_API_URL || process.env.VITE_API_URL || `http://localhost:${process.env.PORT || 8000}`
 
 // Basic smoke + accessibility check
 
