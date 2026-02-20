@@ -1,5 +1,5 @@
 import { Server } from "http";
-import { LogEntry } from "../types";
+import { LogEntry } from "../types/index.js";
 /**
  * WebSocket message types
  */

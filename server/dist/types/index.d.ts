@@ -1,3 +1,3 @@
-export * from "./LogEntry";
-export * from "./ApiResponse";
+export * from "./LogEntry.js";
+export * from "./ApiResponse.js";
 //# sourceMappingURL=index.d.ts.map

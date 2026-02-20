@@ -1,4 +1,4 @@
-import { LogEntry } from "../types";
+import { LogEntry } from "../types/index.js";
 /**
  * File-based storage for logs.
  * Logs are stored in separate JSON files for backend and frontend.

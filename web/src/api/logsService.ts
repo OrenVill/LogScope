@@ -68,15 +68,23 @@ export class LogsApiClient {
   baseUrl: string;
 
   constructor(baseUrl?: string) {
-    // Use provided baseUrl or auto-detect backend
+    // Use provided baseUrl, then VITE_API_URL env, then auto-detect same-origin.
     if (baseUrl) {
       this.baseUrl = baseUrl;
-    } else {
-      // Auto-detect: use same host but port 3000
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      this.baseUrl = `${protocol}//${hostname}:3000`;
+      return;
     }
+
+    // Vite-provided env override (set at build time)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const viteUrl = (import.meta as any).env?.VITE_API_URL;
+    if (viteUrl) {
+      this.baseUrl = viteUrl;
+      return;
+    }
+
+    // Default: use same origin as the page (works when frontend is served by the backend)
+    const origin = window.location.origin;
+    this.baseUrl = origin;
   }
 
   /**

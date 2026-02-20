@@ -57,4 +57,43 @@ describe('LogTable (lazy details)', () => {
     await waitFor(() => expect(screen.getByText(/Function:/i)).toBeInTheDocument())
     expect(screen.getByText(/doLogin/)).toBeInTheDocument()
   })
+
+  it('automatically calls onLoadMore when sentinel intersects', async () => {
+    // Mock IntersectionObserver so we can trigger the callback
+    const observers: Array<{ cb: IntersectionObserverCallback }> = []
+    // @ts-expect-error - test environment mock
+    global.IntersectionObserver = class {
+      cb: IntersectionObserverCallback
+      constructor(cb: IntersectionObserverCallback) {
+        this.cb = cb
+        observers.push({ cb })
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+
+    const onLoadMore = vi.fn()
+
+    render(
+      <LogTable
+        logs={[summary]}
+        loading={false}
+        loadingMore={false}
+        hasMore={true}
+        sortBy="timestamp"
+        onSort={() => {}}
+        onLoadMore={onLoadMore}
+      />
+    )
+
+    // Trigger the observer callbacks as if sentinel entered viewport
+    observers.forEach(o => o.cb([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver))
+
+    expect(onLoadMore).toHaveBeenCalled()
+
+    // Clean up mock
+    // @ts-expect-error - clean up mocked IntersectionObserver
+    delete global.IntersectionObserver
+  })
 })

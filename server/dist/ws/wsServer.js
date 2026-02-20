@@ -1,16 +1,13 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.WsLogServer = void 0;
-const ws_1 = require("ws");
+import { WebSocketServer, WebSocket } from "ws";
 /**
  * WebSocket server for real-time log streaming
  */
-class WsLogServer {
+export class WsLogServer {
     wss;
     clients = new Map();
     clientCounter = 0;
     constructor(httpServer) {
-        this.wss = new ws_1.WebSocketServer({ server: httpServer, path: "/ws" });
+        this.wss = new WebSocketServer({ server: httpServer, path: "/ws" });
         this.wss.on("connection", (ws) => {
             const clientId = `client-${++this.clientCounter}`;
             const client = { id: clientId, ws };
@@ -85,7 +82,7 @@ class WsLogServer {
                 }
             }
             // Send log to client
-            if (client.ws.readyState === ws_1.WebSocket.OPEN) {
+            if (client.ws.readyState === WebSocket.OPEN) {
                 client.ws.send(JSON.stringify({
                     type: "log",
                     data: log,
@@ -106,5 +103,4 @@ class WsLogServer {
         this.wss.close();
     }
 }
-exports.WsLogServer = WsLogServer;
 //# sourceMappingURL=wsServer.js.map

@@ -8,8 +8,11 @@ type Log = LogEntry | LogSummary;
 interface LogTableProps {
   logs: Log[];
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   sortBy: "timestamp" | "level";
   onSort: (sortBy: "timestamp" | "level") => void;
+  onLoadMore?: () => void;
 }
 
 const levelColors: Record<LogLevel, string> = {
@@ -43,13 +46,46 @@ const isFullEntry = (log: Log): log is LogEntry => {
 export const LogTable: React.FC<LogTableProps> = ({
   logs,
   loading,
+  loadingMore = false,
+  hasMore = false,
   sortBy,
   onSort,
+  onLoadMore,
 }) => {
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [fullLogs, setFullLogs] = useState<Map<string, LogEntry>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Keep refs for latest prop values so observer callback has current state
+  const loadingMoreRef = React.useRef<boolean>(false);
+  const hasMoreRef = React.useRef<boolean>(false);
+  React.useEffect(() => { loadingMoreRef.current = !!loadingMore }, [loadingMore]);
+  React.useEffect(() => { hasMoreRef.current = !!hasMore }, [hasMore]);
+
+  // IntersectionObserver -> call onLoadMore when sentinel becomes visible
+  React.useEffect(() => {
+    if (!onLoadMore || typeof window === 'undefined') return;
+    const el = sentinelRef.current || document.querySelector('[data-testid="load-more-sentinel"]') as HTMLDivElement | null;
+    if (!el) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting && hasMoreRef.current && !loadingMoreRef.current) {
+          try {
+            onLoadMore()
+          } catch (err) {
+            // swallow errors from caller
+            console.error('onLoadMore handler error', err)
+          }
+        }
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0.01 });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onLoadMore]);
 
   const toggleExpanded = async (log: Log) => {
     const wasExpanded = expandedRows.has(log.eventId);
@@ -325,6 +361,25 @@ export const LogTable: React.FC<LogTableProps> = ({
             ))}
           </tbody>
         </table>
+
+        {/* Auto-load sentinel: when visible we call onLoadMore silently (no button). */}
+        <div className="p-3 text-center">
+          {loadingMore ? (
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading more...</span>
+            </div>
+          ) : null}
+
+          {/* Render an invisible sentinel only when there's more to load and a handler is provided */}
+          {hasMore && onLoadMore ? (
+            <div
+              data-testid="load-more-sentinel"
+              ref={sentinelRef}
+              style={{ height: 1, width: '100%' }}
+              aria-hidden="true"
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { ErrorResponse } from "../../types";
+import { ErrorResponse } from "../../types/index.js";
 
 /**
  * Error handling middleware for Express

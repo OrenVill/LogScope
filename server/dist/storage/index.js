@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.createQueryIndex = void 0;
 /**
  * Convert a full LogEntry to a lightweight LogSummary
  */
@@ -15,7 +12,7 @@ const toLogSummary = (log) => ({
         serviceName: log.source.serviceName,
     },
 });
-const createQueryIndex = (maxSize = 10000) => {
+export const createQueryIndex = (maxSize = 10000) => {
     let index = new Map();
     let allLogs = [];
     return {
@@ -99,5 +96,4 @@ const createQueryIndex = (maxSize = 10000) => {
         },
     };
 };
-exports.createQueryIndex = createQueryIndex;
 //# sourceMappingURL=index.js.map

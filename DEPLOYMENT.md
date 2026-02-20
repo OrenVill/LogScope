@@ -131,12 +131,14 @@ EOF
 
 ### Step 7: Run the Service
 
+Development (recommended):
+
 ```bash
-# Build and start the server
+# Backend (hot-reload)
 cd server
 npm run dev
 
-# In another terminal, start the frontend
+# Frontend dev server (Vite)
 cd web
 npm run dev
 ```
@@ -144,6 +146,17 @@ npm run dev
 LogScope is now running:
 - **API:** `http://localhost:3000`
 - **Frontend:** `http://localhost:5173`
+
+Production (single process serving frontend):
+
+```bash
+# From repository root (or from server/)
+cd server
+# build frontend + backend, then start server which serves web/dist
+npm run start:prod
+```
+
+The server will build `web/dist`, load static assets from that folder and serve the SPA along with the API and WebSocket endpoint on port 3000.
 
 ### Step 8: (Optional) Service for Auto-Start
 

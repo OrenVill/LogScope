@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFileStorage } from '../storage/fileStorage'
+import { createFileStorage } from '../storage/fileStorage.js'
 import os from 'os'
 import path from 'path'
 import fs from 'fs'

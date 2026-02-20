@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { createQueryIndex } from '../storage/index'
-import type { LogEntry } from '../types'
+import { createQueryIndex } from '../storage/index.js'
+import type { LogEntry } from '../types/index.js'
 
 const makeLog = (id: string): LogEntry => ({
   eventId: id,

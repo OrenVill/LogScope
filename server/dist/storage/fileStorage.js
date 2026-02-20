@@ -1,20 +1,14 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.createFileStorage = void 0;
-const fs_1 = require("fs");
-const path_1 = __importDefault(require("path"));
-const createFileStorage = (logDir) => {
+import { promises as fs } from "fs";
+import path from "path";
+export const createFileStorage = (logDir) => {
     const getFilePath = (runtime) => {
         const filename = runtime === "node" ? "backend.json" : "frontend.json";
-        return path_1.default.join(logDir, filename);
+        return path.join(logDir, filename);
     };
     const readLogs = async (runtime) => {
         const filePath = getFilePath(runtime);
         try {
-            const data = await fs_1.promises.readFile(filePath, "utf-8");
+            const data = await fs.readFile(filePath, "utf-8");
             return JSON.parse(data);
         }
         catch (error) {
@@ -31,7 +25,7 @@ const createFileStorage = (logDir) => {
                 // Read existing logs
                 let logs = [];
                 try {
-                    const data = await fs_1.promises.readFile(filePath, "utf-8");
+                    const data = await fs.readFile(filePath, "utf-8");
                     logs = JSON.parse(data);
                 }
                 catch (error) {
@@ -42,7 +36,7 @@ const createFileStorage = (logDir) => {
                 // Append new log
                 logs.push(log);
                 // Write back to file
-                await fs_1.promises.writeFile(filePath, JSON.stringify(logs, null, 2), "utf-8");
+                await fs.writeFile(filePath, JSON.stringify(logs, null, 2), "utf-8");
             }
             catch (error) {
                 console.error(`Error appending log to ${filePath}:`, error);
@@ -62,7 +56,7 @@ const createFileStorage = (logDir) => {
         },
         initialize: async () => {
             try {
-                await fs_1.promises.mkdir(logDir, { recursive: true });
+                await fs.mkdir(logDir, { recursive: true });
             }
             catch (error) {
                 console.error(`Error initializing log directory ${logDir}:`, error);
@@ -71,5 +65,4 @@ const createFileStorage = (logDir) => {
         },
     };
 };
-exports.createFileStorage = createFileStorage;
 //# sourceMappingURL=fileStorage.js.map

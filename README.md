@@ -19,9 +19,9 @@ configure.bat
 ```
 
 These scripts will:
-- Prompt you for custom port numbers
-- Create a `.env` file with your configuration
-- Show you the commands to run in separate terminals
+- Prompt you for the app port
+- Copy `.env.example` → `.env` and update `PORT` and `VITE_API_URL`
+
 
 ### Option 2: Manual Configuration
 
@@ -37,22 +37,51 @@ These scripts will:
    VITE_API_URL=http://localhost:3000  # Backend URL for frontend
    ```
 
-3. **Start the services in separate terminals:**
+## Install dependecies
 
-   Terminal 1 - Backend:
-   ```bash
-   cd server && npm run dev
-   ```
+  ```
+  npm install
+  ```
 
-   Terminal 2 - Frontend:
-   ```bash
-   cd web && npm run dev
-   ```
+### Starting the server
+You can start LogScope in two ways: a single-process production-style run (recommended for local hosting) or a development workflow with hot-reload.
 
-4. **Open your browser:**
-   ```
-   http://localhost:5173
-   ```
+#### Production (single-process — recommended)
+Builds the frontend and backend, then runs the server that serves the built SPA alongside the API and WebSocket on a single port.
+
+From the repository root:
+
+```bash
+npm start
+```
+
+Notes:
+- `npm start` builds `web` (Vite production build) and `server` (TypeScript), then launches `server/dist/index.js` via `server.js`.
+- The running server serves static assets from `web/dist` and exposes the API and `/ws` on `PORT`.
+- Useful flags:
+  - Skip build step: `SKIP_BUILD=1 npm start` or `node server.js --no-build`
+  - Override port: `PORT=3001 npm start`
+  - Override frontend dist location: `FRONTEND_DIST=/path/to/dist npm start`
+
+#### Development (recommended for active development)
+Run frontend and backend dev servers separately so each has hot-reload and faster iteration.
+
+Terminal 1 — Backend (hot-reload):
+
+```bash
+cd server
+PORT=3000 npm run dev
+```
+
+Terminal 2 — Frontend (Vite dev server):
+
+```bash
+cd web
+VITE_API_URL=http://localhost:3000 VITE_PORT=5173 npm run dev
+```
+
+Tip: use `./configure.sh` or `configure.bat` to create/update `.env` with the desired backend `PORT` and `VITE_API_URL` before running either mode.
+
 
 ## Features
 
@@ -171,6 +200,7 @@ cd ../web && npm install
 Both services automatically reload when code changes (file watching enabled):
 - Backend: Uses nodemon with polling
 - Frontend: Uses Vite dev server with polling
+
 
 ### Test the API
 Example log submission:
