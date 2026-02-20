@@ -8,6 +8,8 @@ interface FilterPanelProps {
 
 const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "success"];
 
+const AUTO_APPLY_DEBOUNCE_MS = 400;
+
 /**
  * FilterPanel component - search and filter controls
  */
@@ -19,6 +21,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
   const [timeTo, setTimeTo] = useState("");
   const [requestId, setRequestId] = useState("");
   const [sessionId, setSessionId] = useState("");
+  const [autoApply, setAutoApply] = useState(true);
+
   // element ids for accessibility
   const subjectId = "filter-subject";
   const textId = "filter-text";
@@ -27,9 +31,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
   const requestIdId = "filter-requestId";
   const sessionIdId = "filter-sessionId";
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // Build a filter object from local state (stable reference)
+  const buildFilters = React.useCallback((): SearchFilters => {
     const filters: SearchFilters = {};
     if (subject) filters.subject = subject;
     if (text) filters.text = text;
@@ -38,8 +41,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
     if (timeTo) filters.timeTo = timeTo;
     if (requestId) filters.requestId = requestId;
     if (sessionId) filters.sessionId = sessionId;
-
-    onSearch(filters);
+    return filters;
+  }, [subject, text, level, timeFrom, timeTo, requestId, sessionId]);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSearch(buildFilters());
   };
 
   const handleClear = () => {
@@ -53,29 +59,54 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
     onSearch({});
   };
 
+  // Debounced auto-apply effect: watches filter inputs and calls onSearch when autoApply is enabled
+  React.useEffect(() => {
+    if (!autoApply) return;
+    const timer = setTimeout(() => {
+      onSearch(buildFilters());
+    }, AUTO_APPLY_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // include buildFilters and onSearch so effect has correct dependencies
+  }, [buildFilters, autoApply, onSearch]);
+
   return (
     <div className="filter-panel">
       <h2 className="mb-3">🔍 Search & Filter</h2>
       {isRealTime && (
         <div className="alert alert-info alert-sm py-2 px-3 mb-3" role="alert">
-          <small><strong>Real-time mode:</strong> Live logs streaming</small>
+          <small>
+            <strong>Real-time mode:</strong> Live logs streaming — you can still set filters here and press
+            <em> Search </em> to apply them to both the historical results and the live stream.
+          </small>
         </div>
       )}
 
       <form onSubmit={handleSearch}>
-        <div className="mb-3">
-          <label htmlFor={subjectId} className="form-label small mb-2">
-            <strong>Subject</strong>
-          </label>
-          <input
-            id={subjectId}
-            type="text"
-            className="form-control form-control-sm"
-            placeholder="e.g., auth, database"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            disabled={isRealTime}
-          />
+        <div className="mb-3 d-flex align-items-center justify-content-between gap-2">
+          <div style={{ flex: 1 }}>
+            <label htmlFor={subjectId} className="form-label small mb-2">
+              <strong>Subject</strong>
+            </label>
+            <input
+              id={subjectId}
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="e.g., auth, database"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+
+          <div className="form-check form-switch" style={{ alignSelf: 'end' }}>
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="autoApplyToggle"
+              checked={autoApply}
+              onChange={(e) => setAutoApply(e.target.checked)}
+            />
+            <label className="form-check-label small" htmlFor="autoApplyToggle">Auto-apply</label>
+          </div>
         </div>
 
         <div className="mb-3">
@@ -87,7 +118,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             className="form-select form-select-sm"
             value={level}
             onChange={(e) => setLevel(e.target.value as LogLevel | "")}
-            disabled={isRealTime}
           >
             <option value="">All levels</option>
             {logLevels.map((lvl) => (
@@ -109,7 +139,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             placeholder="Search in content"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            disabled={isRealTime}
           />
         </div>
 
@@ -123,7 +152,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             className="form-control form-control-sm"
             value={timeFrom}
             onChange={(e) => setTimeFrom(e.target.value)}
-            disabled={isRealTime}
           />
         </div>
 
@@ -137,7 +165,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             className="form-control form-control-sm"
             value={timeTo}
             onChange={(e) => setTimeTo(e.target.value)}
-            disabled={isRealTime}
           />
         </div>
 
@@ -152,7 +179,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             placeholder="Correlation ID"
             value={requestId}
             onChange={(e) => setRequestId(e.target.value)}
-            disabled={isRealTime}
           />
         </div>
 
@@ -167,15 +193,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             placeholder="Session ID"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
-            disabled={isRealTime}
           />
         </div>
 
         <div className="d-grid gap-2">
           <button 
             type="submit" 
-            className="btn btn-primary btn-sm" 
-            disabled={isRealTime}
+            className="btn btn-primary btn-sm"
           >
             🔍 Search
           </button>
@@ -183,7 +207,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
             type="button" 
             className="btn btn-outline-secondary btn-sm" 
             onClick={handleClear}
-            disabled={isRealTime}
           >
             Clear
           </button>

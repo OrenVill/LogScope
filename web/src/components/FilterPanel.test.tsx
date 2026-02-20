@@ -30,4 +30,22 @@ describe('FilterPanel', () => {
     expect(onSearch).toHaveBeenCalledWith({})
     expect((screen.getByPlaceholderText(/e.g., auth, database/i) as HTMLInputElement).value).toBe('')
   })
+
+  it('auto-apply triggers onSearch after debounce when enabled', async () => {
+    const onSearch = vi.fn()
+    vi.useFakeTimers()
+    render(<FilterPanel onSearch={onSearch} isRealTime={false} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/e.g., auth, database/i), { target: { value: 'auth' } })
+
+    // not called immediately
+    expect(onSearch).not.toHaveBeenCalled()
+
+    // advance past debounce
+    vi.advanceTimersByTime(500)
+
+    expect(onSearch).toHaveBeenCalled()
+
+    vi.useRealTimers()
+  })
 })

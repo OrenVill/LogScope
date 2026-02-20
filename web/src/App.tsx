@@ -29,6 +29,7 @@ function App() {
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const [offset, setOffset] = useState(0)
+  const [currentFilters, setCurrentFilters] = useState<SearchFilters | undefined>(undefined)
   const PAGE_SIZE = 20
   const wsRef = useRef<WebSocket | null>(null)
 
@@ -45,10 +46,11 @@ function App() {
   // Load logs from API
   // loadLogs: when reset=true we replace the list (initial search/filter); when false we append (load more)
   const loadLogs = useCallback(async (filters?: SearchFilters, reset: boolean = true) => {
-    if (reset) {
+      if (reset) {
       setLoading(true)
       setError(null)
       setOffset(0)
+      setCurrentFilters(filters)
     } else {
       setLoadingMore(true)
     }
@@ -97,10 +99,11 @@ function App() {
   // Auto-connect WebSocket if real-time mode is enabled
   useEffect(() => {
     if (isRealTime) {
-      connectWebSocket()
+      connectWebSocket(currentFilters)
     } else {
       disconnectWebSocket()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRealTime])
 
   // Load more logs (called from UI / LogTable)
@@ -200,7 +203,7 @@ function App() {
   const toggleRealTime = (enabled: boolean) => {
     setIsRealTime(enabled)
     if (enabled) {
-      connectWebSocket()
+      connectWebSocket(currentFilters)
     } else {
       disconnectWebSocket()
     }
@@ -311,7 +314,7 @@ function App() {
 
       <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3">
         <aside tabIndex={0} className="sidebar bg-body rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
-          <FilterPanel onSearch={loadLogs} isRealTime={isRealTime} />
+          <FilterPanel onSearch={(f) => { loadLogs(f, true); if (isRealTime) { disconnectWebSocket(); connectWebSocket(f); } }} isRealTime={isRealTime} />
         </aside>
 
         <main className="main-content bg-body rounded shadow-sm flex-grow-1 overflow-auto p-4">

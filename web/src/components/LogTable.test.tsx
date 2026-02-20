@@ -61,7 +61,7 @@ describe('LogTable (lazy details)', () => {
   it('automatically calls onLoadMore when sentinel intersects', async () => {
     // Mock IntersectionObserver so we can trigger the callback
     const observers: Array<{ cb: IntersectionObserverCallback }> = []
-    // @ts-ignore - test environment mock
+    // @ts-expect-error - test environment mock
     global.IntersectionObserver = class {
       cb: IntersectionObserverCallback
       constructor(cb: IntersectionObserverCallback) {
@@ -93,7 +93,7 @@ describe('LogTable (lazy details)', () => {
     expect(onLoadMore).toHaveBeenCalled()
 
     // Clean up mock
-    // @ts-ignore
+    // @ts-expect-error - clean up mocked IntersectionObserver
     delete global.IntersectionObserver
   })
 })
