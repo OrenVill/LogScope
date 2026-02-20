@@ -105,7 +105,7 @@ function App() {
             return newTotal
           })
         }
-      } catch (err) {
+      } catch {
         // Silently ignore sync errors
       }
     }, 3000) // Check every 3 seconds
@@ -127,7 +127,6 @@ function App() {
   // loadLogs: when reset=true we replace the list (initial search/filter); when false we append (load more)
   // NOTE: use a ref for `offset` so `loadLogs` identity stays stable and doesn't re-trigger
   // FilterPanel.auto-apply via changing onSearch prop (prevents feedback loop).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadLogs = useCallback(async (filters?: SearchFilters, reset: boolean = true) => {
       if (reset) {
       setLoading(true)
@@ -305,7 +304,7 @@ function App() {
       try {
         wsRef.current.send(JSON.stringify({ type: 'subscribe', filters: f }));
         return;
-      } catch (err) {
+      } catch {
         // fallback to reconnect if send fails
         disconnectWebSocket();
         connectWebSocket(f);
@@ -355,7 +354,7 @@ function App() {
     return () => {
       disconnectWebSocket()
     }
-  }, [])
+  }, [disconnectWebSocket])
 
   // Clear all logs
   const handleClearLogs = async () => {
