@@ -35,6 +35,39 @@
   min-width: 280px;
   max-width: 380px;
   flex-shrink: 0;
+  transition: width 0.3s ease 0s;
+}
+
+/* Collapsed sidebar styles */
+.sidebar[style*="width: 50px"] {
+  padding: 0.5rem 0 !important;
+  text-align: center;
+}
+
+.sidebar[style*="width: 50px"] .filter-panel,
+.sidebar[style*="width: 50px"] .realtime-toggle {
+  display: none;
+}
+
+/* Resize handle styling */
+.sidebar-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.sidebar-resize-handle:hover {
+  background-color: rgba(0, 123, 255, 0.5);
+}
+
+.sidebar-resize-handle:active {
+  background-color: rgba(0, 123, 255, 0.8);
 }
 
 .main-content {

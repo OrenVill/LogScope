@@ -38,7 +38,6 @@ export const createAutoCleanup = (options: AutoCleanupOptions) => {
         if (expiredIds.length > 0) {
           await fileStorage.deleteLogsByIds(expiredIds);
           queryIndex.removeFromIndex(expiredIds);
-          console.log(`[AutoCleanup] Time-based: removed ${expiredIds.length}/${totalBefore} log(s) older than ${maxAgeMs / 1000}s.`);
         }
 
         // --- Capacity-based cleanup ---
@@ -68,16 +67,9 @@ export const createAutoCleanup = (options: AutoCleanupOptions) => {
           if (toDelete.length > 0) {
             await fileStorage.deleteLogsByIds(toDelete);
             queryIndex.removeFromIndex(toDelete);
-            console.log(
-              `[AutoCleanup] Capacity-based: removed ${toDelete.length} log(s). Total was ${totalAfterTimeCleanup}, target max: ${maxTotal}, starred: ${starredIds.size}`
-            );
-          } else {
-            console.log(
-              `[AutoCleanup] Capacity exceeded (${totalAfterTimeCleanup}>${maxTotal}) but all remaining logs are starred. Starred count: ${starredIds.size}`
-            );
+          } else if (totalAfterTimeCleanup > 0) {
+            // All remaining logs are starred, cannot reduce further
           }
-        } else if (totalAfterTimeCleanup > 0) {
-          console.log(`[AutoCleanup] Total: ${totalAfterTimeCleanup}, within limit (${maxTotal})`);
         }
       } catch (error) {
         console.error("[AutoCleanup] Unexpected error during cleanup:", error);

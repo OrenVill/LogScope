@@ -188,13 +188,6 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
       const limit = filters.limit || 100;
       const paginatedResults = results.slice(offset, offset + limit);
 
-      // Log pagination debug info
-      if (offset === 0) {
-        console.log(
-          `[Query] offset=${offset}, limit=${limit}, indexSize=${allLogs.length}, filteredTotal=${total}, returned=${paginatedResults.length}`
-        );
-      }
-
       // Convert to summaries if lightweight mode is enabled
       const finalResults = filters.lightweight
         ? paginatedResults.map(toLogSummary)

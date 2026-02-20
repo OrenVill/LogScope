@@ -30,6 +30,14 @@ export interface IQueryIndex {
      */
     addToIndex(log: LogEntry): void;
     /**
+     * Remove log entries from the index by their event IDs
+     */
+    removeFromIndex(eventIds: string[]): void;
+    /**
+     * Clear all entries from the index. Optionally keep specific event IDs.
+     */
+    clearIndex(keepEventIds?: string[]): void;
+    /**
      * Get a log by ID from the index
      */
     getById(eventId: string): LogEntry | null;

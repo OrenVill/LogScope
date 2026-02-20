@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import { FilterPanel } from './components/FilterPanel'
 import { LogTable } from './components/LogTable'
-import { StatsPanel } from './components/StatsPanel'
 import { logsApi } from './api/logsService'
 import type { LogEntry, LogLevel, SearchFilters } from './types/api'
 
@@ -26,7 +25,7 @@ function App() {
   })
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
-  const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
+  const [levelFilter] = useState<LogLevel | 'all'>('all')
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const [offset, setOffset] = useState(0)
@@ -37,8 +36,56 @@ function App() {
   const [showClearModal, setShowClearModal] = useState(false)
   const [clearKeepStarred, setClearKeepStarred] = useState(true)
   const [isClearing, setIsClearing] = useState(false)
-  const PAGE_SIZE = 20
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('logscope-sidebar-collapsed')
+    return saved ? JSON.parse(saved) : false
+  })
+  const [sidebarWidth, setSidebarWidth] = useState(300)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const isResizing = useRef(false)
   const wsRef = useRef<WebSocket | null>(null)
+  const PAGE_SIZE = 20
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('logscope-sidebar-collapsed', JSON.stringify(sidebarCollapsed))
+  }, [sidebarCollapsed])
+
+  // Handle sidebar resize
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizing.current = true
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current || !sidebarRef.current) return
+      
+      const container = sidebarRef.current.parentElement
+      if (!container) return
+
+      const containerRect = container.getBoundingClientRect()
+      const newWidth = e.clientX - containerRect.left
+      
+      // Constrain width between 200px and 450px
+      if (newWidth >= 200 && newWidth <= 450) {
+        setSidebarWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      isResizing.current = false
+    }
+
+    if (isResizing.current) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [])
 
   // Periodically sync totalCount from server to detect cleanup events
   useEffect(() => {
@@ -373,12 +420,21 @@ function App() {
           <div className="d-flex align-items-center gap-3" style={{ marginLeft: 'auto' }}>
             <button
               className="btn btn-sm btn-outline-light"
-              onClick={toggleDarkMode}
-              title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              style={{ fontSize: '1.2rem', padding: '4px 8px' }}
-            >
-              {isDarkMode ? '☀️' : '🌙'}
-            </button>
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+            style={{ fontSize: '1.2rem', padding: '4px 8px' }}
+          >
+            {sidebarCollapsed ? '→' : '←'}
+          </button>
+
+          <button
+            className="btn btn-sm btn-outline-light"
+            onClick={toggleDarkMode}
+            title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+            style={{ fontSize: '1.2rem', padding: '4px 8px' }}
+          >
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
 
             <div className="d-flex align-items-center gap-2" style={{ minWidth: '180px' }}>
               <div className="form-check form-switch mb-0">
@@ -399,10 +455,51 @@ function App() {
         </div>
       </header>
 
-      <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3">
-        <aside tabIndex={0} className="sidebar bg-body rounded shadow-sm p-4 overflow-auto" style={{ width: '300px' }}>
-          {/* Memoized search handler to avoid re-creating function on every render */}
-          <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
+      <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3" style={{ position: 'relative' }}>
+        <aside 
+          ref={sidebarRef}
+          className="sidebar bg-body rounded shadow-sm p-4 overflow-auto"
+          style={{ 
+            width: sidebarCollapsed ? '50px' : `${sidebarWidth}px`,
+            minWidth: sidebarCollapsed ? '50px' : '200px',
+            maxWidth: sidebarCollapsed ? '50px' : '450px',
+            transition: 'width 0.3s ease',
+            position: 'relative',
+            flexShrink: 0
+          }}
+        >
+          {/* Resize handle */}
+          {!sidebarCollapsed && (
+            <div
+              onMouseDown={handleMouseDown}
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: '4px',
+                cursor: 'col-resize',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 123, 255, 0.5)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              title="Drag to resize sidebar"
+            />
+          )}
+          
+          {/* Collapse/expand indicator when collapsed */}
+          {sidebarCollapsed && (
+            <div className="d-flex justify-content-center align-items-center h-100" style={{ minHeight: '100px' }}>
+              <span style={{ fontSize: '0.75rem', color: '#999' }} title="Sidebar collapsed">⋮</span>
+            </div>
+          )}
+
+          {/* Filter panel - hidden when collapsed */}
+          {!sidebarCollapsed && (
+            <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
+          )}
         </aside>
 
         <main className="main-content bg-body rounded shadow-sm flex-grow-1 overflow-auto p-4">
@@ -413,8 +510,6 @@ function App() {
             </div>
           )}
 
-          <StatsPanel logs={logs} onLevelFilter={setLevelFilter} currentLevel={levelFilter} />
-          
           <div className="mb-4 d-flex gap-2 align-items-center flex-wrap">
             <button 
               className={`btn btn-sm ${runtime === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
