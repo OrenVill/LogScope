@@ -1,6 +1,9 @@
 const { spawnSync, spawn } = require('child_process');
 const path = require('path');
 
+// Load root .env (so `npm start` / root configuration is inherited by the spawned server)
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 function runSync(cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
   if (res.error) {
@@ -67,6 +70,7 @@ if (!skipBuild) {
 // Resolve server entry and spawn it so stdout/stderr are forwarded
 const serverEntry = path.join(__dirname, 'server', 'dist', 'index.js');
 const child = spawn(process.execPath, [serverEntry], {
+  cwd: path.join(__dirname, 'server'),
   stdio: 'inherit',
   env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' }
 });

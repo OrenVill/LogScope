@@ -7,7 +7,7 @@
 
 const WebSocket = require("ws");
 
-const url = "ws://localhost:3000/ws";
+const url = `ws://localhost:${process.env.PORT || 3000}/ws`;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectDelay = 2000;

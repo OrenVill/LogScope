@@ -12,7 +12,21 @@ import { createLogsRouter } from "./api/routes/logsRouter.js";
 import { WsLogServer } from "./ws/wsServer.js";
 
 // Load environment variables
-dotenv.config();
+// Prefer a `.env` in the server folder; if not present, fall back to repository root `.env`.
+// This ensures running from the repository root (root `npm start`) can still set values
+// such as PORT in the repo-level `.env`.
+const serverEnvPath = path.resolve(process.cwd(), '.env');
+const repoEnvPath = path.resolve(process.cwd(), '..', '.env');
+if (fs.existsSync(serverEnvPath)) {
+  dotenv.config({ path: serverEnvPath });
+  console.log(`Loaded environment from ${serverEnvPath}`);
+} else if (fs.existsSync(repoEnvPath)) {
+  dotenv.config({ path: repoEnvPath });
+  console.log(`Loaded environment from ${repoEnvPath}`);
+} else {
+  dotenv.config();
+  console.log('No .env file found in server/ or repo root; using process.env');
+}
 
 const app: Express = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -62,44 +76,48 @@ app.get("/health", (req, res) => {
     // Mount API routes with WebSocket server
     app.use("/api/logs", createLogsRouter(fileStorage, queryIndex, wsLogServer));
 
-    // Serve frontend assets in production (built by Vite -> web/dist)
-    if (process.env.NODE_ENV === "production") {
-      // ESM-safe __dirname
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
+    // Serve frontend assets if a built `dist` exists (either bundled into server
+    // or `web/dist` in the repo). This makes the server usable in production mode
+    // and when you run the repo-level `npm start` after building the web.
+    // ESM-safe __dirname
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
 
-      // Possible frontend locations (order of preference):
-      // 1) copy of frontend inside server dist (e.g. bundled into server artifact)
-      //    -> runtime path: <server>/dist (so we check `<__dirname>/dist`)
-      // 2) sibling web/dist during local deploy (repo layout)
-      //    -> <repo-root>/web/dist
-      // 3) override via FRONTEND_DIST env var
-      const bundledDist = path.resolve(__dirname, "dist");
-      const siblingWebDist = path.resolve(__dirname, "..", "..", "web", "dist");
-      const clientDist = process.env.FRONTEND_DIST
-        ? path.resolve(process.env.FRONTEND_DIST)
-        : fs.existsSync(bundledDist)
-        ? bundledDist
-        : siblingWebDist;
+    const bundledDist = path.resolve(__dirname, "dist");
+    const siblingWebDist = path.resolve(__dirname, "..", "..", "web", "dist");
+    const resolvedClientDist = process.env.FRONTEND_DIST
+      ? path.resolve(process.env.FRONTEND_DIST)
+      : fs.existsSync(bundledDist)
+      ? bundledDist
+      : siblingWebDist;
 
-      console.log(`Serving frontend from: ${clientDist}`);
-      app.use(express.static(clientDist));
+    if (fs.existsSync(resolvedClientDist)) {
+      console.log(`Serving frontend from: ${resolvedClientDist}`);
+      app.use(express.static(resolvedClientDist));
 
       // SPA fallback - serve index.html for unknown non-API routes
       app.get("*", (req, res) => {
-        res.sendFile(path.join(clientDist, "index.html"));
+        res.sendFile(path.join(resolvedClientDist, "index.html"));
       });
+    } else if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "NODE_ENV=production but no frontend build found at:",
+        resolvedClientDist
+      );
     }
 
     // Error handling middleware
     app.use(errorHandler);
 
     // Start HTTP server
-    httpServer.listen(PORT, "127.0.0.1", () => {
-      console.log(
-        `Server running on http://localhost:${PORT}`
-      );
-      console.log(`WebSocket endpoint: ws://localhost:${PORT}/ws`);
+    // Bind host can be overridden with BIND_HOST env var. Default is undefined
+    // (Node will listen on all interfaces, supporting both IPv4 and IPv6 localhost).
+    const BIND_HOST = process.env.BIND_HOST || undefined;
+
+    httpServer.listen(PORT, BIND_HOST, () => {
+      const hostDisplay = BIND_HOST ?? 'localhost';
+      console.log(`Server running on http://${hostDisplay}:${PORT}`);
+      console.log(`WebSocket endpoint: ws://${hostDisplay}:${PORT}/ws`);
       console.log(`Log directory: ${LOG_DIR}`);
     });
   } catch (error) {
