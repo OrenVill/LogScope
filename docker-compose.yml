@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  logscope:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_DIR=/app/logs
+      - MAX_INDEX_SIZE=${MAX_INDEX_SIZE:-10000}
+      - CLEANUP_INTERVAL_MS=${CLEANUP_INTERVAL_MS:-10000}
+      - LOG_MAX_TOTAL=${LOG_MAX_TOTAL:-500}
+      - LOG_MAX_AGE_MS=${LOG_MAX_AGE_MS:-3600000}
+      - LOG_DELETE_COUNT=${LOG_DELETE_COUNT:-100}
+    volumes:
+      - logscope_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  logscope_logs:
+    driver: local
