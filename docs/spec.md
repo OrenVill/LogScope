@@ -41,11 +41,13 @@
 - [x] Configuration scripts (Linux/macOS/Windows)
 
 ### Could Have (Future)
-- [ ] API key authentication for remote deployments
 - [ ] Log export (JSON, CSV)
 - [ ] Log redaction for sensitive data
 - [ ] Advanced search (regex, field-specific)
 - [ ] Dashboard with aggregation charts
+
+### Recently Completed
+- [x] API key authentication for remote deployments
 
 ### Won't Have (This Version)
 - Multi-user authentication

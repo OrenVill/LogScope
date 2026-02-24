@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { errorHandler } from "./api/middleware/errorHandler.js";
+import { apiKeyAuth, getConfiguredApiKey } from "./api/middleware/apiKeyAuth.js";
 import { createFileStorage } from "./storage/fileStorage.js";
 import { createQueryIndex } from "./storage/index.js";
 import { createStarredStorage } from "./storage/starredStorage.js";
@@ -80,12 +81,23 @@ app.get("/health", (req, res) => {
     await queryIndex.buildIndex(allLogs);
     console.log(`Loaded ${allLogs.length} logs into query index`);
 
+    // Security banner
+    const configuredKey = getConfiguredApiKey();
+    if (configuredKey) {
+      console.log("[Security] API key authentication: ENABLED");
+      if (configuredKey.length < 16) {
+        console.warn("[Security] WARNING: API key is shorter than 16 characters. Consider using a longer key.");
+      }
+    } else {
+      console.log("[Security] API key authentication: DISABLED (no API_KEY set)");
+    }
+
     // Initialize WebSocket server
-    wsLogServer = new WsLogServer(httpServer);
+    wsLogServer = new WsLogServer(httpServer, configuredKey);
     console.log("WebSocket server initialized on /ws");
 
-    // Mount API routes with WebSocket server
-    app.use("/api/logs", createLogsRouter(fileStorage, queryIndex, wsLogServer, starredStorage));
+    // Mount API key auth + routes
+    app.use("/api/logs", apiKeyAuth, createLogsRouter(fileStorage, queryIndex, wsLogServer, starredStorage));
 
     // Start auto-cleanup service
     const autoCleanup = createAutoCleanup({

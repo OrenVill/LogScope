@@ -19,6 +19,15 @@ async function fetchWithRetry(
   options?: RequestInit,
   retryCount = 0
 ): Promise<Response> {
+  // Inject API key header when configured
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiKey = ((import.meta as any).env?.VITE_API_KEY as string) || "";
+  if (apiKey) {
+    const headers = new Headers(options?.headers);
+    headers.set("X-API-Key", apiKey);
+    options = { ...options, headers };
+  }
+
   try {
     const response = await fetch(url, options);
 
@@ -302,7 +311,12 @@ export class LogsApiClient {
       try {
         const protocol = this.baseUrl.startsWith("https") ? "wss" : "ws";
         const host = new URL(this.baseUrl).host;
-        const ws = new WebSocket(`${protocol}://${host}/ws`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const apiKey = ((import.meta as any).env?.VITE_API_KEY as string) || "";
+        const wsUrl = apiKey
+          ? `${protocol}://${host}/ws?apiKey=${encodeURIComponent(apiKey)}`
+          : `${protocol}://${host}/ws`;
+        const ws = new WebSocket(wsUrl);
 
         // store instance so callers can close/inspect it and so we can cancel reconnects
         this._ws = ws;

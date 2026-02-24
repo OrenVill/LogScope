@@ -1,5 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { Server } from "http";
+import { IncomingMessage } from "http";
+import crypto from "crypto";
 import { LogEntry } from "../types/index.js";
 
 /**
@@ -33,11 +35,26 @@ export class WsLogServer {
   private wss: WebSocketServer;
   private clients: Map<string, WsClient> = new Map();
   private clientCounter: number = 0;
+  private apiKey: string | undefined;
 
-  constructor(httpServer: Server) {
+  constructor(httpServer: Server, apiKey?: string) {
+    this.apiKey = apiKey;
     this.wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-    this.wss.on("connection", (ws: WebSocket) => {
+    this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+      // Validate API key if configured
+      if (this.apiKey) {
+        const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+        const queryKey = url.searchParams.get("apiKey");
+        const headerKey = req.headers["x-api-key"] as string | undefined;
+        const providedKey = headerKey || queryKey;
+
+        if (!providedKey || !this.safeCompare(providedKey, this.apiKey)) {
+          ws.close(4401, "Unauthorized");
+          return;
+        }
+      }
+
       const clientId = `client-${++this.clientCounter}`;
       const client: WsClient = { id: clientId, ws };
 
@@ -147,6 +164,19 @@ export class WsLogServer {
    */
   public getClientCount(): number {
     return this.clients.size;
+  }
+
+  /**
+   * Constant-time string comparison
+   */
+  private safeCompare(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) {
+      crypto.timingSafeEqual(bufA, bufA);
+      return false;
+    }
+    return crypto.timingSafeEqual(bufA, bufB);
   }
 
   /**

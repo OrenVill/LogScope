@@ -75,8 +75,16 @@
 - [x] `M10-T3` — .dockerignore
 - [x] `M10-T4` — DOCKER.md documentation
 
+### ✅ Milestone 11: Optional API Key Authentication
+- [x] `M11-T1` — API key auth middleware (constant-time comparison)
+- [x] `M11-T2` — Mount middleware on /api/logs routes
+- [x] `M11-T3` — WebSocket connection auth
+- [x] `M11-T4` — Frontend API key header + WS query param
+- [x] `M11-T5` — Environment & docs update
+- [x] `M11-T6` — Startup security banner
+
 ## Test Status
-- **Backend:** 7/7 tests passing
+- **Backend:** 16/16 tests passing
 - **Frontend:** 10/10 tests passing
 - **TypeScript:** Both server & web compile clean
 - **ESLint:** No warnings

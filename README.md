@@ -180,8 +180,27 @@ Each log contains:
 
 - **Self-Hosted Only:** No data leaves your machine
 - **Local Storage:** All logs stored in `./logs` directory
-- **No Authentication (v1):** Designed for trusted development environments
 - **No Third-Party Services:** Complete control over your data
+
+### Optional API Key Authentication
+
+LogScope can optionally require an API key on all endpoints. This is useful when exposing the service on a LAN or via Docker port mapping.
+
+```bash
+# Backend: set the key
+API_KEY=my-secret-key-1234 npm run dev
+
+# Frontend: provide the same key
+VITE_API_KEY=my-secret-key-1234 npm run dev
+```
+
+When `API_KEY` is set:
+- All `/api/logs/*` REST endpoints require an `X-API-Key` header
+- WebSocket `/ws` connections require the key via `?apiKey=` query param or `X-API-Key` header
+- The `/health` endpoint remains unauthenticated
+- Keys shorter than 16 characters produce a startup warning
+
+When `API_KEY` is **not** set, LogScope runs fully open (default, suitable for local development).
 
 ## Development
 

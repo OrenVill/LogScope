@@ -73,6 +73,16 @@ Then access the UI at `http://localhost:5174`
 - **Description:** Number of oldest logs to delete when the `LOG_MAX_TOTAL` capacity limit is hit.
 - **Example:** `LOG_DELETE_COUNT=200 npm run dev`
 
+### Security
+
+**`API_KEY`**
+- **Type:** `string`
+- **Default:** (empty — authentication disabled)
+- **Description:** When set, all `/api/logs/*` endpoints and WebSocket `/ws` connections require a matching `X-API-Key` header. Requests without a valid key receive `401 Unauthorized`. When unset, LogScope runs fully open (suitable for local-only development).
+- **Recommended:** At least 16 characters
+- **Example:** `API_KEY=my-secret-dev-key-1234 npm run dev`
+- **Note:** Use HTTPS when transmitting the key over non-localhost networks.
+
 ### Node.js Environment
 
 **`NODE_ENV`**
@@ -134,6 +144,12 @@ Note: Individual log content size is limited to 10KB regardless of this setting.
 - **Note:** Configured in `vite.config.ts`, reads from environment variable
 
 ### API Configuration
+
+**`VITE_API_KEY`**
+- **Type:** `string`
+- **Default:** (empty — no key sent)
+- **Description:** When the backend has `API_KEY` set, the frontend must provide the same key via this variable. It is attached as an `X-API-Key` header on every API request and as a `?apiKey=` query parameter on WebSocket connections.
+- **Example:** `VITE_API_KEY=my-secret-dev-key-1234 npm run dev`
 
 **`VITE_API_URL`**
 - **Type:** `string`
@@ -220,6 +236,7 @@ MAX_INDEX_SIZE=10000
 NODE_ENV=development
 LOG_LEVEL=info
 RATE_LIMIT_MAX_REQUESTS=100
+# API_KEY=my-secret-dev-key-1234   # uncomment to enable API key auth
 ```
 
 Load with:
@@ -233,6 +250,7 @@ npm run dev
 ```properties
 # .env in /web directory
 VITE_API_URL=http://localhost:3000
+# VITE_API_KEY=my-secret-dev-key-1234   # must match backend API_KEY
 ```
 
 Usage in code:
