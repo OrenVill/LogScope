@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+server/dist/
+
+# Environment files
+.env
+web/.env
+
+# Log storage
+logs/
+server/logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Test results
+test-results/
+web/test-results/
