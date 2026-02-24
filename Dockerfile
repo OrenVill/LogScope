@@ -1,6 +1,6 @@
 # Multi-stage build for LogScope
 # Stage 1: Build
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN npm --workspace=@logscope/web run build
 RUN npm --workspace=@logscope/server run build
 
 # Stage 2: Runtime
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 

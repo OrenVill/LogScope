@@ -42,7 +42,7 @@ This guide covers setting up LogScope on your local device or personal server fo
 
 ### Prerequisites
 
-- Node.js 18.0.0+
+- Node.js 20.0.0+
 - npm 9.0.0+
 - Git
 - Any operating system (Windows, macOS, Linux)

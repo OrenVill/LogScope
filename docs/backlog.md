@@ -2,23 +2,23 @@
 
 ## ✅ Completed Milestones
 
-All milestones M1-M10 have been completed. See `docs/progress.md` for details.
+All milestones M1-M11 have been completed. See `docs/progress.md` for details.
+
+### Milestone 11: Optional API Key Authentication ✅
+> **Priority:** Should Have (for remote deployment security)
+> **Status:** Complete
+
+- [x] `M11-T1` — `API_KEY` environment variable support. Passthrough when unset.
+- [x] `M11-T2` — Auth middleware with constant-time comparison (`crypto.timingSafeEqual`), `X-API-Key` header.
+- [x] `M11-T3` — Applied to all `/api/logs/*` routes.
+- [x] `M11-T4` — WebSocket auth via `X-API-Key` header or `?apiKey=` query param.
+- [x] `M11-T5` — Frontend attaches key from `VITE_API_KEY` env var automatically.
+- [x] `M11-T6` — Updated `.env.example`, `ENVIRONMENT.md`, `README.md`, `openapi.yaml`.
+- [x] `M11-T7` — Backward compatible: no key set = fully open access.
 
 ---
 
 ## 🔜 Proposed Future Milestones
-
-### Milestone 11: Optional API Key Authentication
-> **Priority:** Should Have (for remote deployment security)
-> **Status:** Not Started
-
-- [ ] `M11-T1` — Add `LOG_API_KEY` environment variable support. **Verify:** Server starts with/without key set
-- [ ] `M11-T2` — Create auth middleware that checks `Authorization: Bearer <key>` header. **Verify:** Requests without key return 401 when key is configured
-- [ ] `M11-T3` — Apply auth middleware to all API routes. **Verify:** All endpoints protected
-- [ ] `M11-T4` — Add WebSocket authentication (key in connection params). **Verify:** WS rejects unauthorized connections
-- [ ] `M11-T5` — Update frontend to include API key from env. **Verify:** Frontend can authenticate
-- [ ] `M11-T6` — Update `.env.example` and documentation. **Verify:** Setup instructions clear
-- [ ] `M11-T7` — Ensure backward compatibility (no key = open access). **Verify:** Existing deployments work
 
 ### Milestone 12: Log Export
 > **Priority:** Could Have

@@ -37,7 +37,7 @@ These scripts will:
    VITE_API_URL=http://localhost:3000  # Backend URL for frontend
    ```
 
-## Install dependecies
+## Install dependencies
 
   ```
   npm install
