@@ -32,6 +32,9 @@ tags:
   - name: WebSocket
     description: Real-time log streaming
 
+security:
+  - ApiKeyAuth: []
+
 paths:
   /api/logs/collect:
     post:
@@ -355,6 +358,16 @@ paths:
           description: Invalid WebSocket upgrade request
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Optional API key authentication. Set the `API_KEY` environment variable on the
+        server to enable. When enabled, all requests must include a valid `X-API-Key` header.
+        When `API_KEY` is not configured, authentication is disabled and this header is ignored.
+
   schemas:
     LogLevel:
       type: string

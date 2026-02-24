@@ -54,6 +54,47 @@ export const createFileStorage = (logDir) => {
             }
             return null;
         },
+        deleteLogsByIds: async (ids) => {
+            const idSet = new Set(ids);
+            let backendDeleted = 0;
+            let frontendDeleted = 0;
+            for (const runtime of ["node", "browser"]) {
+                const filePath = getFilePath(runtime);
+                const logs = await readLogs(runtime);
+                const filtered = logs.filter((l) => !idSet.has(l.eventId));
+                const deleted = logs.length - filtered.length;
+                if (deleted > 0) {
+                    await fs.writeFile(filePath, JSON.stringify(filtered, null, 2), "utf-8");
+                    if (runtime === "node")
+                        backendDeleted = deleted;
+                    else
+                        frontendDeleted = deleted;
+                }
+            }
+            return { backendDeleted, frontendDeleted };
+        },
+        getTotalLogCount: async () => {
+            const [backend, frontend] = await Promise.all([
+                readLogs("node"),
+                readLogs("browser"),
+            ]);
+            return backend.length + frontend.length;
+        },
+        clearLogs: async (keepStarredIds) => {
+            let backendDeleted = 0;
+            let frontendDeleted = 0;
+            for (const runtime of ["node", "browser"]) {
+                const filePath = getFilePath(runtime);
+                const logs = await readLogs(runtime);
+                const kept = keepStarredIds
+                    ? logs.filter((l) => keepStarredIds.has(l.eventId))
+                    : [];
+                backendDeleted += runtime === "node" ? logs.length - kept.length : 0;
+                frontendDeleted += runtime === "browser" ? logs.length - kept.length : 0;
+                await fs.writeFile(filePath, JSON.stringify(kept, null, 2), "utf-8");
+            }
+            return { backendDeleted, frontendDeleted };
+        },
         initialize: async () => {
             try {
                 await fs.mkdir(logDir, { recursive: true });

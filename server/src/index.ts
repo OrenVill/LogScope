@@ -6,8 +6,11 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { errorHandler } from "./api/middleware/errorHandler.js";
+import { apiKeyAuth, getConfiguredApiKey } from "./api/middleware/apiKeyAuth.js";
 import { createFileStorage } from "./storage/fileStorage.js";
 import { createQueryIndex } from "./storage/index.js";
+import { createStarredStorage } from "./storage/starredStorage.js";
+import { createAutoCleanup } from "./cleanup/autoCleanup.js";
 import { createLogsRouter } from "./api/routes/logsRouter.js";
 import { WsLogServer } from "./ws/wsServer.js";
 
@@ -32,10 +35,15 @@ const app: Express = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const LOG_DIR = process.env.LOG_DIR || path.join(process.cwd(), "logs");
 const MAX_INDEX_SIZE = parseInt(process.env.MAX_INDEX_SIZE || "10000", 10);
+const CLEANUP_INTERVAL_MS = parseInt(process.env.CLEANUP_INTERVAL_MS || "10000", 10); // 10 sec
+const LOG_MAX_AGE_MS = parseInt(process.env.LOG_MAX_AGE_MS || "3600000", 10);          // 1 hour
+const LOG_MAX_TOTAL = parseInt(process.env.LOG_MAX_TOTAL || "500", 10);
+const LOG_DELETE_COUNT = parseInt(process.env.LOG_DELETE_COUNT || "100", 10);
 
 // Initialize storage and query index
 const fileStorage = createFileStorage(LOG_DIR);
 const queryIndex = createQueryIndex(MAX_INDEX_SIZE);
+const starredStorage = createStarredStorage(LOG_DIR);
 
 // Create HTTP server for WebSocket support
 const httpServer = http.createServer(app);
@@ -59,6 +67,10 @@ app.get("/health", (req, res) => {
     // Initialize storage (create directories if needed)
     await fileStorage.initialize();
 
+    // Load starred IDs from disk
+    await starredStorage.load();
+    console.log(`Loaded ${starredStorage.getAll().size} starred log(s)`);
+
     // Load existing logs and build index
     const backendLogs = await fileStorage.readLogs("node");
     const frontendLogs = await fileStorage.readLogs("browser");
@@ -69,12 +81,38 @@ app.get("/health", (req, res) => {
     await queryIndex.buildIndex(allLogs);
     console.log(`Loaded ${allLogs.length} logs into query index`);
 
+    // Security banner
+    const configuredKey = getConfiguredApiKey();
+    if (configuredKey) {
+      console.log("[Security] API key authentication: ENABLED");
+      if (configuredKey.length < 16) {
+        console.warn("[Security] WARNING: API key is shorter than 16 characters. Consider using a longer key.");
+      }
+    } else {
+      console.log("[Security] API key authentication: DISABLED (no API_KEY set)");
+    }
+
     // Initialize WebSocket server
-    wsLogServer = new WsLogServer(httpServer);
+    wsLogServer = new WsLogServer(httpServer, configuredKey);
     console.log("WebSocket server initialized on /ws");
 
-    // Mount API routes with WebSocket server
-    app.use("/api/logs", createLogsRouter(fileStorage, queryIndex, wsLogServer));
+    // Mount API key auth + routes
+    app.use("/api/logs", apiKeyAuth, createLogsRouter(fileStorage, queryIndex, wsLogServer, starredStorage));
+
+    // Start auto-cleanup service
+    const autoCleanup = createAutoCleanup({
+      fileStorage,
+      queryIndex,
+      starredStorage,
+      maxAgeMs: LOG_MAX_AGE_MS,
+      maxTotal: LOG_MAX_TOTAL,
+      deleteCount: LOG_DELETE_COUNT,
+    });
+    setInterval(() => autoCleanup.runCleanup(), CLEANUP_INTERVAL_MS);
+    console.log(
+      `Auto-cleanup scheduled every ${CLEANUP_INTERVAL_MS / 1000}s ` +
+      `(max age: ${LOG_MAX_AGE_MS / 1000}s, max total: ${LOG_MAX_TOTAL}, delete count: ${LOG_DELETE_COUNT})`
+    );
 
     // Serve frontend assets if a built `dist` exists (either bundled into server
     // or `web/dist` in the repo). This makes the server usable in production mode

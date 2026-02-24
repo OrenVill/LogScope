@@ -1,10 +1,10 @@
 /**
  * Rate limiter for log collection endpoint
- * Limits: 100 requests per minute per IP
+ * Limits: 10000 requests per minute per IP (very permissive for local development)
  */
 const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 100; // 100 requests per window
+const RATE_LIMIT_MAX = 10000; // 10000 requests per window
 export const rateLimitMiddleware = (req, res, next) => {
     const clientIp = req.ip || "unknown";
     const now = Date.now();

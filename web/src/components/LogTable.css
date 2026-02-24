@@ -299,7 +299,12 @@
 .table tbody td {
   padding: 16px 14px;
   vertical-align: middle;
-  border-bottom: none;
+  border-bottom: none; /* default - per-row divider handled below */
+}
+
+/* Thin dividing line between log rows (subtle) */
+.table tbody tr:not(.log-row-expanded) td {
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
 .table tbody tr {
@@ -324,6 +329,27 @@
 .table tbody .fw-bold {
   color: #212529;
   font-weight: 700;
+}
+
+/* Star / pin button */
+.star-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.star-btn:hover {
+  opacity: 1;
+  transform: scale(1.25);
+}
+
+.star-btn[aria-pressed="true"] {
+  opacity: 1;
 }
 
 /* Copy button styling */
@@ -390,7 +416,7 @@
 
 /* Dark Mode */
 [data-bs-theme="dark"] .table tbody td code {
-  background-color: #333;
+  background-color: var(--bs-dark);
   color: #ff6b9d;
 }
 
@@ -423,8 +449,8 @@
 }
 
 [data-bs-theme="dark"] .log-table-wrapper {
-  background: #252525;
-  border-color: #444;
+  background-color: var(--bs-black);
+  border-color: rgba(255,255,255,0.06);
 }
 
 [data-bs-theme="dark"] .log-table-wrapper::-webkit-scrollbar {
@@ -455,4 +481,9 @@
 
 [data-bs-theme="dark"] .log-content-display::-webkit-scrollbar-thumb:hover {
   background: #888;
+}
+
+/* Dark-mode color for the thin row divider */
+[data-bs-theme="dark"] .table tbody tr:not(.log-row-expanded) td {
+  border-bottom-color: rgba(255,255,255,0.04);
 }
