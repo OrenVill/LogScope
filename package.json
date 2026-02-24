@@ -10,6 +10,7 @@
     "build:web": "npm --workspace=@logscope/web run build",
     "build:server": "npm --workspace=@logscope/server run build",
     "build": "npm run build:web && npm run build:server",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "npm --workspace=@logscope/server test && npm --workspace=@logscope/web test"
   }
 }
