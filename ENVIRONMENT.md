@@ -73,6 +73,39 @@ Then access the UI at `http://localhost:5174`
 - **Description:** Number of oldest logs to delete when the `LOG_MAX_TOTAL` capacity limit is hit.
 - **Example:** `LOG_DELETE_COUNT=200 npm run dev`
 
+### S3 archive viewer (optional)
+
+When **`LOGS_S3_BUCKET`** is set, LogScope runs as a **read-only viewer** over the log bucket (`info/`, `durable/`, optional `landing/`). Local JSON ingest remains the default when this variable is unset.
+
+| Variable | Default | Description |
+|---|---|---|
+| **`LOGS_S3_BUCKET`** | (unset) | Enables S3 read mode when set (e.g. `logs-euc1`) |
+| **`LOGS_S3_REGION`** | `eu-central-1` | AWS region |
+| **`LOGS_S3_ENDPOINT`** | (unset) | Optional custom S3 endpoint (path-style) |
+| **`LOGS_S3_ACCESS_KEY_ID`** / **`LOGS_S3_SECRET_ACCESS_KEY`** | (unset) | Optional static credentials; otherwise default AWS chain |
+| **`LOGS_S3_DEFAULT_ENV`** | `dev` | Default `env` query param (`dev`, `preprod`, `prod`) |
+| **`LOGS_S3_DEFAULT_SERVICE`** | `api` | Default service (`api`, `worker`) |
+| **`LOGS_S3_INCLUDE_LANDING`** | `true` | Also read raw `landing/` for hours with no `info/` or `durable/` compacted object |
+| **`LOGS_S3_MAX_HOURS`** | `168` | Max UTC hours scanned per search |
+
+Search accepts optional query params: `env`, `service` (or `svc`), `path` (`/status`, `/api/…`), `status` (`200`, `500`), plus existing `timeFrom`, `timeTo`, `level`, etc. Rows from the open hour are marked `live` (`landing/`). Compacted hours are marked `archive`.
+
+Example (CLI):
+
+```bash
+cd server
+LOGS_S3_BUCKET=logs-euc1 LOGS_S3_REGION=eu-central-1 \
+  LOGS_S3_ACCESS_KEY_ID=… LOGS_S3_SECRET_ACCESS_KEY=… \
+  LOGS_S3_DEFAULT_ENV=prod LOGS_S3_DEFAULT_SERVICE=api \
+  npm run start:prod
+```
+
+Then query:
+
+```bash
+curl -s 'http://localhost:3000/api/logs/search?env=prod&service=api&timeFrom=2026-09-25T00:00:00.000Z&timeTo=2026-09-26T23:59:59.000Z&limit=20' | jq .
+```
+
 ### Security
 
 **`API_KEY`**

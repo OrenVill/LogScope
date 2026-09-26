@@ -60,4 +60,19 @@ describe('QueryIndex filters', () => {
     expect(around?.focusIndex).toBe(1)
     expect(around?.logs.map((log) => log.eventId)).toEqual(['mid', 'late'])
   })
+
+  it('filters by HTTP path and status', async () => {
+    const idx = createQueryIndex(100)
+    const status = make('status', 'info', 'GET /api/auth/status 200', 'ok')
+    status.source = { ...status.source, path: '/api/auth/status', status: 200, method: 'GET' }
+    const failed = make('failed', 'error', 'POST /api/chat-stream 500', 'boom')
+    failed.source = { ...failed.source, path: '/api/chat-stream', status: 500, method: 'POST' }
+    await idx.buildIndex([status, failed])
+
+    const byPath = await idx.query({ path: '/status', limit: 10 })
+    expect(byPath.logs.map((log) => log.eventId)).toEqual(['status'])
+
+    const byStatus = await idx.query({ status: '500', limit: 10 })
+    expect(byStatus.logs.map((log) => log.eventId)).toEqual(['failed'])
+  })
 })

@@ -58,6 +58,45 @@ describe('LogTable (lazy details)', () => {
     expect(screen.getByText(/doLogin/)).toBeInTheDocument()
   })
 
+  it('replaces the archive source block with env, pod, route, and origin', () => {
+    const archive: LogEntry = {
+      eventId: 's3-err',
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      subject: 'POST /api/chat-stream 500',
+      message: 'stream failed',
+      data: { stack: 'Error: boom', message: 'stream failed', requestId: 'req-err-1' },
+      source: {
+        function: 'archive',
+        file: 's3://prod/api',
+        process: 'api-abc',
+        runtime: 'node',
+        serviceName: 'api',
+        env: 'prod',
+        pod: 'api-abc',
+        method: 'POST',
+        path: '/api/chat-stream',
+        status: 500,
+        origin: 'archive',
+      },
+      correlation: { requestId: 'req-err-1' },
+    }
+
+    render(<LogTable logs={[archive]} loading={false} sortBy="timestamp" onSort={() => {}} />)
+    expect(screen.getByText('archive')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('▶'))
+
+    expect(screen.getByText('prod')).toBeInTheDocument()
+    expect(screen.getByText('api-abc')).toBeInTheDocument()
+    expect(screen.getByText('/api/chat-stream')).toBeInTheDocument()
+    expect(screen.getByText('500')).toBeInTheDocument()
+    expect(screen.getByText('req-err-1')).toBeInTheDocument()
+    expect(screen.queryByText(/Function:/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('s3://prod/api')).not.toBeInTheDocument()
+    expect(screen.queryByText('Node.js')).not.toBeInTheDocument()
+    expect(screen.queryByText('unknown')).not.toBeInTheDocument()
+  })
+
   it('automatically calls onLoadMore when sentinel intersects', async () => {
     // Mock IntersectionObserver so we can trigger the callback
     const observers: Array<{ cb: IntersectionObserverCallback }> = []

@@ -482,6 +482,14 @@ export const LogTable: React.FC<LogTableProps> = ({
                   </td>
                   <td>
                     <span className="source-cell">
+                      {log.source.origin && (
+                        <span
+                          className={`origin-tag origin-${log.source.origin}`}
+                          title={log.source.origin === "live" ? "Open hour, read from landing/" : "Compacted hour"}
+                        >
+                          {log.source.origin === "live" ? "live" : "archive"}
+                        </span>
+                      )}
                       <span className={`runtime-tag runtime-${log.source.runtime}`}>
                         {log.source.runtime === "node" ? "Backend" : "Frontend"}
                       </span>
@@ -542,21 +550,58 @@ export const LogTable: React.FC<LogTableProps> = ({
                                   <div className="detail-grid">
                                     <div>
                                       <h3>Source</h3>
-                                      <div className="log-metadata">
-                                        <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
-                                        <div>
-                                          <strong>File:</strong>
-                                          <span className="file-value">
-                                            <code>{displayLog.source.file}</code>
-                                            {editorLink(displayLog.source.file) && (
-                                              <a className="editor-link" href={editorLink(displayLog.source.file) ?? undefined}>Open in editor</a>
-                                            )}
-                                          </span>
+                                      {displayLog.source.origin ? (
+                                        <div className="log-metadata">
+                                          <div>
+                                            <strong>Origin:</strong>{" "}
+                                            <span className={`origin-tag origin-${displayLog.source.origin}`}>
+                                              {displayLog.source.origin === "live" ? "live · landing/" : "archive"}
+                                            </span>
+                                          </div>
+                                          {displayLog.source.env && (
+                                            <div><strong>Env:</strong> <span>{displayLog.source.env}</span></div>
+                                          )}
+                                          <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
+                                          {displayLog.source.pod && (
+                                            <div><strong>Pod:</strong> <code>{displayLog.source.pod}</code></div>
+                                          )}
+                                          {displayLog.source.method && (
+                                            <div><strong>Method:</strong> <code>{displayLog.source.method}</code></div>
+                                          )}
+                                          {displayLog.source.path && (
+                                            <div>
+                                              <strong>Path:</strong>{" "}
+                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ path: displayLog.source.path })}>
+                                                {displayLog.source.path}
+                                              </button>
+                                            </div>
+                                          )}
+                                          {displayLog.source.status !== undefined && (
+                                            <div>
+                                              <strong>HTTP status:</strong>{" "}
+                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ status: String(displayLog.source.status) })}>
+                                                {displayLog.source.status}
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
-                                        <div><strong>Process:</strong> <code>{displayLog.source.process}</code></div>
-                                        <div><strong>Runtime:</strong> <span>{displayLog.source.runtime === "node" ? "Node.js" : "Browser"}</span></div>
-                                        <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
-                                      </div>
+                                      ) : (
+                                        <div className="log-metadata">
+                                          <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
+                                          <div>
+                                            <strong>File:</strong>
+                                            <span className="file-value">
+                                              <code>{displayLog.source.file}</code>
+                                              {editorLink(displayLog.source.file) && (
+                                                <a className="editor-link" href={editorLink(displayLog.source.file) ?? undefined}>Open in editor</a>
+                                              )}
+                                            </span>
+                                          </div>
+                                          <div><strong>Process:</strong> <code>{displayLog.source.process}</code></div>
+                                          <div><strong>Runtime:</strong> <span>{displayLog.source.runtime === "node" ? "Node.js" : "Browser"}</span></div>
+                                          <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
+                                        </div>
+                                      )}
                                     </div>
 
                                     <div>
