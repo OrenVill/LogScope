@@ -233,13 +233,6 @@ button.subject-filter:hover {
   color: var(--accent);
 }
 
-.in-view-count {
-  display: inline-flex;
-  margin-left: 8px;
-  color: var(--faint);
-  font-size: 0.72rem;
-}
-
 .id-actions,
 .value-filters {
   display: flex;

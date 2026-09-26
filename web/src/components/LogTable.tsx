@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import type { LogEntry, LogLevel, LogSummary } from "../types/log";
 import { logsApi } from "../api/logsService";
-import { editorLink, groupConsecutive, isTypingTarget, logSignature, primitiveFields, relativeTime, signatureCounts } from "../lib/inspection";
+import { editorLink, groupInView, isTypingTarget, presentedSource, primitiveFields, relativeTime } from "../lib/inspection";
 import type { SearchFilters } from "../types/api";
 import "./LogTable.css";
 
@@ -221,8 +221,7 @@ export const LogTable: React.FC<LogTableProps> = ({
     return sorted;
   }, [logs, sortBy, sortOrder]);
 
-  const groups = useMemo(() => groupConsecutive(sortedLogs), [sortedLogs]);
-  const matchCounts = useMemo(() => signatureCounts(sortedLogs), [sortedLogs]);
+  const groups = useMemo(() => groupInView(sortedLogs), [sortedLogs]);
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 15000);
@@ -401,6 +400,7 @@ export const LogTable: React.FC<LogTableProps> = ({
               const log = group.log;
               const stamp = formatStamp(log.timestamp);
               const expanded = expandedRows.has(log.eventId);
+              const rowSource = presentedSource(log);
               return (
               <React.Fragment key={log.eventId}>
                 <tr
@@ -467,12 +467,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                       {log.subject}
                     </button>
                     {group.count > 1 && (
-                      <span className="repeat-count" title={`${group.count} identical events in a row`}>×{group.count}</span>
-                    )}
-                    {(matchCounts.get(logSignature(log)) ?? 1) > group.count && (
-                      <span className="in-view-count" title="Matching events in this view, including ones that are not adjacent">
-                        {matchCounts.get(logSignature(log))} in view
-                      </span>
+                      <span className="repeat-count" title={`${group.count} identical events in this view`}>×{group.count}</span>
                     )}
                   </td>
                   <td>
@@ -482,12 +477,12 @@ export const LogTable: React.FC<LogTableProps> = ({
                   </td>
                   <td>
                     <span className="source-cell">
-                      {log.source.origin && (
+                      {rowSource && (
                         <span
-                          className={`origin-tag origin-${log.source.origin}`}
-                          title={log.source.origin === "live" ? "Open hour, read from landing/" : "Compacted hour"}
+                          className={`origin-tag origin-${rowSource.origin}`}
+                          title={rowSource.origin === "live" ? "Open hour, read from landing/" : "Compacted hour"}
                         >
-                          {log.source.origin === "live" ? "live" : "archive"}
+                          {rowSource.origin === "live" ? "live" : "archive"}
                         </span>
                       )}
                       <span className={`runtime-tag runtime-${log.source.runtime}`}>
@@ -509,6 +504,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                         <div className="log-details">
                           {(() => {
                             const displayLog = getDisplayLog(log);
+                            const httpSource = presentedSource(displayLog);
                             return (
                               <>
                                 <div className="detail-block">
@@ -550,37 +546,37 @@ export const LogTable: React.FC<LogTableProps> = ({
                                   <div className="detail-grid">
                                     <div>
                                       <h3>Source</h3>
-                                      {displayLog.source.origin ? (
+                                      {httpSource ? (
                                         <div className="log-metadata">
                                           <div>
                                             <strong>Origin:</strong>{" "}
-                                            <span className={`origin-tag origin-${displayLog.source.origin}`}>
-                                              {displayLog.source.origin === "live" ? "live · landing/" : "archive"}
+                                            <span className={`origin-tag origin-${httpSource.origin}`}>
+                                              {httpSource.origin === "live" ? "live · landing/" : "archive"}
                                             </span>
                                           </div>
-                                          {displayLog.source.env && (
-                                            <div><strong>Env:</strong> <span>{displayLog.source.env}</span></div>
+                                          {httpSource.env && (
+                                            <div><strong>Env:</strong> <span>{httpSource.env}</span></div>
                                           )}
-                                          <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
-                                          {displayLog.source.pod && (
-                                            <div><strong>Pod:</strong> <code>{displayLog.source.pod}</code></div>
+                                          <div><strong>Service:</strong> <span>{httpSource.service}</span></div>
+                                          {httpSource.pod && (
+                                            <div><strong>Pod:</strong> <code>{httpSource.pod}</code></div>
                                           )}
-                                          {displayLog.source.method && (
-                                            <div><strong>Method:</strong> <code>{displayLog.source.method}</code></div>
+                                          {httpSource.method && (
+                                            <div><strong>Method:</strong> <code>{httpSource.method}</code></div>
                                           )}
-                                          {displayLog.source.path && (
+                                          {httpSource.path && (
                                             <div>
                                               <strong>Path:</strong>{" "}
-                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ path: displayLog.source.path })}>
-                                                {displayLog.source.path}
+                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ path: httpSource.path })}>
+                                                {httpSource.path}
                                               </button>
                                             </div>
                                           )}
-                                          {displayLog.source.status !== undefined && (
+                                          {httpSource.status !== undefined && (
                                             <div>
                                               <strong>HTTP status:</strong>{" "}
-                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ status: String(displayLog.source.status) })}>
-                                                {displayLog.source.status}
+                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ status: String(httpSource.status) })}>
+                                                {httpSource.status}
                                               </button>
                                             </div>
                                           )}

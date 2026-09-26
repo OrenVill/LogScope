@@ -11,20 +11,42 @@ export interface LogGroup<T extends GroupableLog> {
   eventIds: string[]
 }
 
+function normalizeField(value: string): string {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+export function logSignature(log: GroupableLog): string {
+  return `${normalizeField(log.level)}\0${normalizeField(log.subject)}\0${normalizeField(log.message)}`
+}
+
 export function groupConsecutive<T extends GroupableLog>(logs: T[]): LogGroup<T>[] {
   const groups: LogGroup<T>[] = []
   for (const log of logs) {
     const previous = groups[groups.length - 1]
-    const same =
-      previous &&
-      previous.log.level === log.level &&
-      previous.log.subject === log.subject &&
-      previous.log.message === log.message
-    if (previous && same) {
+    if (previous && logSignature(previous.log) === logSignature(log)) {
       previous.count += 1
       previous.eventIds.push(log.eventId)
     } else {
       groups.push({ log, count: 1, eventIds: [log.eventId] })
+    }
+  }
+  return groups
+}
+
+/** Collapse every copy of a signature in the loaded list. The first row stays put. */
+export function groupInView<T extends GroupableLog>(logs: T[]): LogGroup<T>[] {
+  const groups: LogGroup<T>[] = []
+  const indexBySignature = new Map<string, number>()
+  for (const log of logs) {
+    const key = logSignature(log)
+    const existing = indexBySignature.get(key)
+    if (existing === undefined) {
+      indexBySignature.set(key, groups.length)
+      groups.push({ log, count: 1, eventIds: [log.eventId] })
+    } else {
+      const group = groups[existing]
+      group.count += 1
+      group.eventIds.push(log.eventId)
     }
   }
   return groups
@@ -73,10 +95,6 @@ export function newestWithLevel<T extends { level: string; timestamp: string }>(
   return logs
     .filter((log) => log.level === level)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-}
-
-export function logSignature(log: GroupableLog): string {
-  return `${log.level}\0${log.subject}\0${log.message}`
 }
 
 export function signatureCounts<T extends GroupableLog>(logs: T[]): Map<string, number> {
@@ -135,6 +153,88 @@ export function primitiveFields(data: unknown): { key: string; value: string }[]
   return Object.entries(data as Record<string, unknown>)
     .filter(([, value]) => value !== null && ['string', 'number', 'boolean'].includes(typeof value))
     .map(([key, value]) => ({ key, value: String(value) }))
+}
+
+const HTTP_ROUTE = /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+?)(?:\s+-\s+|\s+)(\d{3})$/i
+
+/** `GET /status 200` from compacted hours, or `GET /status - 200` from raw lines. */
+export function parseHttpRoute(value: string | undefined | null): { method: string; path: string; status: number } | null {
+  if (!value) return null
+  const match = HTTP_ROUTE.exec(value.trim())
+  if (!match) return null
+  return { method: match[1].toUpperCase(), path: match[2], status: Number(match[3]) }
+}
+
+export interface PresentedSource {
+  origin: 'live' | 'archive'
+  env?: string
+  service: string
+  pod?: string
+  method?: string
+  path?: string
+  status?: number
+}
+
+function locationFromFile(file: string | undefined): { env?: string; service?: string; origin?: 'live' | 'archive' } {
+  if (!file) return {}
+  const landing = /^landing\/([^/]+)\/([^/]+)/.exec(file)
+  if (landing) return { env: landing[1], service: landing[2], origin: 'live' }
+  const archive = /^s3:\/\/([^/]+)\/([^/]+)/.exec(file)
+  if (archive) return { env: archive[1], service: archive[2], origin: 'archive' }
+  return {}
+}
+
+/**
+ * Bucket rows are stored with function archive and file s3://env/service.
+ * Raw lines use `METHOD /path - status` and belong to the open hour.
+ */
+export function presentedSource(log: {
+  subject?: string
+  message?: string
+  source?: {
+    function?: string
+    file?: string
+    process?: string
+    serviceName?: string
+    env?: string
+    pod?: string
+    method?: string
+    path?: string
+    status?: number
+    origin?: 'live' | 'archive'
+  }
+}): PresentedSource | null {
+  const source = log.source
+  if (!source) return null
+  const located = locationFromFile(source.file)
+  const bucketRow = Boolean(
+    source.origin ||
+    source.function === 'archive' ||
+    source.function === 'landing' ||
+    located.origin ||
+    source.method ||
+    source.path
+  )
+  if (!bucketRow) return null
+
+  const fromMessage = parseHttpRoute(log.message)
+  const fromSubject = parseHttpRoute(log.subject)
+  const route = fromMessage ?? fromSubject
+  const dashed = [log.message, log.subject].some((value) => Boolean(value && /\s-\s+\d{3}$/.test(value.trim())))
+  const pod = source.pod || (source.process && source.process !== 'unknown' ? source.process : undefined)
+  const origin =
+    source.origin ??
+    (dashed || source.function === 'landing' || located.origin === 'live' ? 'live' : 'archive')
+
+  return {
+    origin,
+    env: source.env ?? located.env,
+    service: source.serviceName || located.service || '',
+    ...(pod ? { pod } : {}),
+    method: source.method ?? route?.method,
+    path: source.path ?? route?.path,
+    status: source.status ?? route?.status,
+  }
 }
 
 export function isTypingTarget(target: EventTarget | null): boolean {
