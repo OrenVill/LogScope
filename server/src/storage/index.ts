@@ -21,6 +21,10 @@ export interface IQueryIndex {
     text?: string;
     requestId?: string;
     sessionId?: string;
+    /** NexVill bucket viewer: dev | preprod | prod */
+    env?: string;
+    /** NexVill bucket viewer: nexvill-api | nexvill-worker */
+    service?: string;
     limit?: number;
     offset?: number;
     lightweight?: boolean;

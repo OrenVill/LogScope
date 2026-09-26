@@ -151,7 +151,7 @@ export const validateSearchParams = (
   res: Response,
   next: NextFunction
 ) => {
-  const { timeFrom, timeTo, limit, offset } = req.query;
+  const { timeFrom, timeTo, limit, offset, env, service, svc } = req.query;
 
   // Validate time ranges if provided
   if (timeFrom && isNaN(new Date(timeFrom as string).getTime())) {
@@ -191,6 +191,25 @@ export const validateSearchParams = (
         errorCode: "INVALID_OFFSET",
       });
     }
+  }
+
+  const validEnvs = ["dev", "preprod", "prod"];
+  if (env && !validEnvs.includes(String(env))) {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid env. Must be one of: ${validEnvs.join(", ")}`,
+      errorCode: "INVALID_ENV",
+    });
+  }
+
+  const validServices = ["nexvill-api", "nexvill-worker"];
+  const serviceValue = service || svc;
+  if (serviceValue && !validServices.includes(String(serviceValue))) {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid service. Must be one of: ${validServices.join(", ")}`,
+      errorCode: "INVALID_SERVICE",
+    });
   }
 
   next();

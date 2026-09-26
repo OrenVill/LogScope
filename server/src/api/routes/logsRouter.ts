@@ -6,20 +6,36 @@ import { IQueryIndex } from "../../storage/index.js";
 import { IStarredStorage } from "../../storage/starredStorage.js";
 import { WsLogServer } from "../../ws/wsServer.js";
 import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation.js";
+import { BucketQueryValidationError } from "../../nexvill/bucketQueryIndex.js";
+
+export interface LogsRouterOptions {
+  /** S3 bucket read-only mode: disable ingest and mutations */
+  readOnlyArchive?: boolean;
+}
 
 export const createLogsRouter = (
   storage: IFileStorage,
   queryIndex: IQueryIndex,
   wsServer?: WsLogServer,
-  starredStorage?: IStarredStorage
+  starredStorage?: IStarredStorage,
+  options?: LogsRouterOptions
 ) => {
   const router = Router();
+  const readOnly = options?.readOnlyArchive === true;
+
+  const readOnlyResponse = (res: Response) =>
+    res.status(503).json({
+      success: false,
+      error: "LogScope is in read-only S3 archive mode; this action is disabled.",
+      errorCode: "READ_ONLY_ARCHIVE",
+    });
 
   /**
    * POST /api/logs/collect
    * Collect a log entry from frontend or backend
    */
   router.post("/collect", rateLimitMiddleware, validateLogEntry, async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const {
         timestamp,
@@ -106,6 +122,9 @@ export const createLogsRouter = (
         text,
         requestId,
         sessionId,
+        env,
+        service,
+        svc,
         limit = 100,
         offset = 0,
         lightweight = "true",
@@ -117,6 +136,8 @@ export const createLogsRouter = (
       const isLightweight = lightweight !== "false";
 
       // Execute query
+      const serviceParam = (service as string | undefined) || (svc as string | undefined);
+
       const result = await queryIndex.query({
         timeFrom: timeFrom as string | undefined,
         timeTo: timeTo as string | undefined,
@@ -125,6 +146,8 @@ export const createLogsRouter = (
         text: text as string | undefined,
         requestId: requestId as string | undefined,
         sessionId: sessionId as string | undefined,
+        env: env as string | undefined,
+        service: serviceParam,
         limit: parsedLimit,
         offset: parsedOffset,
         lightweight: isLightweight,
@@ -144,10 +167,12 @@ export const createLogsRouter = (
       });
     } catch (error) {
       console.error("Error searching logs:", error);
-      res.status(500).json({
+      const message = error instanceof Error ? error.message : "Failed to search logs";
+      const isValidation = error instanceof BucketQueryValidationError;
+      res.status(isValidation ? 400 : 500).json({
         success: false,
-        error: "Failed to search logs",
-        errorCode: "SERVER_ERROR",
+        error: message,
+        errorCode: isValidation ? "INVALID_QUERY" : "SERVER_ERROR",
       });
     }
   });
@@ -158,6 +183,7 @@ export const createLogsRouter = (
    * Query param: keepStarred=true (default false) - keep pinned logs
    */
   router.delete("/all", async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const keepStarred = req.query.keepStarred === "true";
       const starredIds = keepStarred && starredStorage ? starredStorage.getAll() : undefined;
@@ -197,6 +223,7 @@ export const createLogsRouter = (
    * Pin a log entry so it is protected from automatic deletion
    */
   router.post("/:eventId/star", async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const { eventId } = req.params;
       if (!starredStorage) {
@@ -215,6 +242,7 @@ export const createLogsRouter = (
    * Unpin a log entry so it becomes eligible for automatic deletion again
    */
   router.delete("/:eventId/star", async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const { eventId } = req.params;
       if (!starredStorage) {
@@ -309,6 +337,7 @@ export const createLogsRouter = (
           backend: { count: backendLogs.length },
           frontend: { count: frontendLogs.length },
           total: backendLogs.length + frontendLogs.length,
+          ...(readOnly ? { mode: "s3-archive-readonly" as const } : {}),
         },
       });
     } catch (error) {
