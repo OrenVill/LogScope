@@ -16,24 +16,6 @@ interface LogTableProps {
   totalCount?: number;
 }
 
-const levelColors: Record<LogLevel, string> = {
-  debug: "secondary",
-  info: "info",
-  warn: "warning",
-  error: "danger",
-  critical: "danger",
-  success: "success",
-};
-
-const levelIcons: Record<LogLevel, string> = {
-  debug: "🐛",
-  info: "ℹ️",
-  warn: "⚠️",
-  error: "❌",
-  critical: "🚨",
-  success: "✅",
-};
-
 /**
  * Check if a log is a full entry or just a summary
  */
@@ -218,14 +200,26 @@ export const LogTable: React.FC<LogTableProps> = ({
     }
   };
 
+  const formatStamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return {
+      time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      day: date.toLocaleDateString([], { month: "short", day: "numeric" }),
+    };
+  };
+
   if (loading) {
     return (
       <div className="log-table">
-        <h2 className="mb-4 h4">📋 Logs</h2>
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "300px" }}>
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
+        <div className="log-heading">
+          <div>
+            <h2>Event stream</h2>
+            <p>Structured logs, ready to inspect</p>
           </div>
+        </div>
+        <div className="table-status" role="status">
+          <div className="ring" />
+          <span className="visually-hidden">Loading...</span>
         </div>
       </div>
     );
@@ -234,14 +228,16 @@ export const LogTable: React.FC<LogTableProps> = ({
   if (logs.length === 0) {
     return (
       <div className="log-table">
-        <h2 className="mb-4 h4">📋 Logs</h2>
-        <div className="card border-0 shadow-sm">
-          <div className="card-body text-center py-5">
-            <h5 className="card-title text-muted">No logs found</h5>
-            <p className="card-text text-muted small mb-3">
-              Use the search panel on the left to find logs, or enable real-time mode to stream incoming logs
-            </p>
+        <div className="log-heading">
+          <div>
+            <h2>Event stream</h2>
+            <p>Structured logs, ready to inspect</p>
           </div>
+        </div>
+        <div className="empty-state">
+          <div className="empty-mark" aria-hidden="true" />
+          <h3>No logs in view</h3>
+          <p>Adjust the filters, or leave live mode on to watch new events arrive.</p>
         </div>
       </div>
     );
@@ -249,90 +245,101 @@ export const LogTable: React.FC<LogTableProps> = ({
 
   return (
     <div className="log-table">
-      <div className="d-flex align-items-center justify-content-between mb-4">
+      <div className="log-heading">
         <div>
-          <h2 className="h4 mb-1">📋 Logs</h2>
-          <p className="text-muted small mb-0">Live structured logging and inspection</p>
+          <h2>Event stream</h2>
+          <p>Structured logs, ready to inspect</p>
         </div>
-        <span className="badge bg-primary fs-6 px-3 py-2">{totalCount} total</span>
+        <span className="count-pill">{totalCount} total</span>
       </div>
 
-      <div className="log-table-container card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden">
-        <table className="table table-hover table-sm">
-          <thead className="table-light">
+      <div className="log-table-container">
+        <table className="table">
+          <thead>
             <tr>
-              <th style={{ width: "32px" }} title="Pin log to protect from auto-deletion">⭐</th>
-              <th style={{ cursor: "pointer", width: "40px" }}>•</th>
-              <th style={{ cursor: "pointer", width: "30px" }}>Level</th>
-              <th style={{ cursor: "pointer" }} onClick={() => toggleSort("timestamp")}>
+              <th style={{ width: "44px" }} title="Pin log to protect from auto-deletion">Pin</th>
+              <th style={{ width: "40px" }}><span className="visually-hidden">Expand</span></th>
+              <th className="is-sortable" style={{ width: "108px" }} onClick={() => toggleSort("level")}>
+                Level {sortBy === "level" && (sortOrder === "desc" ? "↓" : "↑")}
+              </th>
+              <th className="is-sortable" onClick={() => toggleSort("timestamp")}>
                 Timestamp {sortBy === "timestamp" && (sortOrder === "desc" ? "↓" : "↑")}
               </th>
               <th>Subject</th>
-              <th>Content</th>
-              <th style={{ width: "120px" }}>Source</th>
+              <th>Message</th>
+              <th style={{ width: "140px" }}>Source</th>
             </tr>
           </thead>
           <tbody>
-            {sortedLogs.map((log: Log) => (
+            {sortedLogs.map((log: Log) => {
+              const stamp = formatStamp(log.timestamp);
+              const expanded = expandedRows.has(log.eventId);
+              return (
               <React.Fragment key={log.eventId}>
-                <tr 
+                <tr
                   title={`ID: ${log.eventId}`}
                   className={`log-row-${log.level}`}
                 >
-                  <td className="text-center">
+                  <td>
                     <button
                       className="star-btn"
                       title={localStarred.has(log.eventId) ? "Unpin (log will be auto-deleted)" : "Pin (protect from auto-deletion)"}
                       onClick={(e) => toggleStar(e, log)}
                       aria-pressed={localStarred.has(log.eventId)}
+                      aria-label={localStarred.has(log.eventId) ? "Unpin log" : "Pin log"}
                     >
-                      {localStarred.has(log.eventId) ? "⭐" : "☆"}
+                      <svg viewBox="0 0 24 24" aria-hidden="true" fill={localStarred.has(log.eventId) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
+                        <path d="M12 3.2 14.7 8.7l6 .9-4.4 4.2 1 6-5.3-2.8L6.7 19.8l1-6L3.3 9.6l6-.9L12 3.2Z" strokeLinejoin="round" />
+                      </svg>
                     </button>
                   </td>
-                  <td className="text-center" style={{ cursor: "pointer" }} onClick={() => toggleExpanded(log)}>
-                    <span style={{ fontSize: "1rem" }}>
-                      {expandedRows.has(log.eventId) ? "▼" : "▶"}
-                    </span>
-                  </td>
-                  <td className="text-center">
-                    <span
-                      className={`badge bg-${levelColors[log.level]}`}
-                      title={`Level: ${log.level}`}
+                  <td>
+                    <button
+                      type="button"
+                      className="expand-btn"
+                      onClick={() => toggleExpanded(log)}
+                      aria-expanded={expanded}
+                      aria-label={expanded ? "Collapse log" : "Expand log"}
                     >
-                      {levelIcons[log.level]}
+                      <span aria-hidden="true">{expanded ? "▼" : "▶"}</span>
+                    </button>
+                  </td>
+                  <td>
+                    <span className="level-pill" title={`Level: ${log.level}`}>
+                      <span className="level-dot" aria-hidden="true" />
+                      {log.level}
                     </span>
                   </td>
                   <td>
-                    <small className="text-muted">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </small>
+                    <span className="ts">
+                      {stamp.time}
+                      <small>{stamp.day}</small>
+                    </span>
                   </td>
                   <td>
-                    <span className="fw-bold">{log.subject}</span>
+                    <span className="subject-name">{log.subject}</span>
                   </td>
                   <td>
-                    <small>
-                      {log.message ? log.message.substring(0, 50) : <em className="text-muted">(no message)</em>}
-                      {log.message && log.message.length > 50 && "..."}
-                    </small>
+                    <span className="message-preview" title={log.message || undefined}>
+                      {log.message || <em>No message</em>}
+                    </span>
                   </td>
                   <td>
-                    <small className="text-muted">
-                      {log.source.runtime === "node" ? "🖥️ Backend" : "🌐 Frontend"}
-                      <br />
-                      <code className="small text-body">{log.source.serviceName}</code>
-                    </small>
+                    <span className="source-cell">
+                      <span className={`runtime-tag runtime-${log.source.runtime}`}>
+                        {log.source.runtime === "node" ? "Backend" : "Frontend"}
+                      </span>
+                      <code className="service-name">{log.source.serviceName}</code>
+                    </span>
                   </td>
                 </tr>
-                {expandedRows.has(log.eventId) && (
+                {expanded && (
                   <tr className={`log-row-expanded log-row-${log.level}`}>
-                    <td colSpan={7} className="p-3">
+                    <td colSpan={7}>
                       {loadingDetails.has(log.eventId) ? (
-                        <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100px" }}>
-                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
-                            <span className="visually-hidden">Loading details...</span>
-                          </div>
-                          <span className="text-muted">Loading log details...</span>
+                        <div className="table-status" style={{ minHeight: "100px" }}>
+                          <div className="ring" role="status" />
+                          <span>Loading log details...</span>
                         </div>
                       ) : (
                         <div className="log-details">
@@ -340,44 +347,42 @@ export const LogTable: React.FC<LogTableProps> = ({
                             const displayLog = getDisplayLog(log);
                             return (
                               <>
-                                <div className="log-details-section">
-                                  <div className="d-flex justify-content-between align-items-center mb-2">
-                                    <h3 className="text-uppercase small fw-bold mb-0">📝 Message</h3>
-                                  </div>
-                                  <p className="mb-3">{displayLog.message || <em className="text-muted">(no message)</em>}</p>
+                                <div className="detail-block">
+                                  <h3>Message</h3>
+                                  <p>{displayLog.message || <em>No message</em>}</p>
                                 </div>
 
                                 {isFullEntry(displayLog) && displayLog.data ? (
-                                  <div className="log-details-section">
-                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                      <h3 className="text-uppercase small fw-bold mb-0">📊 Data</h3>
-                                      <button 
-                                        className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                  <div className="detail-block">
+                                    <div className="detail-head">
+                                      <h3>Data</h3>
+                                      <button
+                                        className="btn-quiet"
                                         onClick={() => copyToClipboard(formatContent(displayLog.data))}
                                         title="Copy data to clipboard"
                                       >
-                                        📋 Copy
+                                        Copy
                                       </button>
                                     </div>
-                                    <pre className="log-content-display mb-3">{formatContent(displayLog.data)}</pre>
+                                    <pre className="log-content-display">{formatContent(displayLog.data)}</pre>
                                   </div>
                                 ) : null}
 
                                 {isFullEntry(displayLog) ? (
-                                  <div className="row">
-                                    <div className="col-md-6">
-                                      <h3 className="text-uppercase small fw-bold mb-0">📍 Source Information</h3>
+                                  <div className="detail-grid">
+                                    <div>
+                                      <h3>Source</h3>
                                       <div className="log-metadata">
                                         <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
                                         <div><strong>File:</strong> <code>{displayLog.source.file}</code></div>
                                         <div><strong>Process:</strong> <code>{displayLog.source.process}</code></div>
-                                        <div><strong>Runtime:</strong> {displayLog.source.runtime === "node" ? "🖥️ Node.js" : "🌐 Browser"}</div>
-                                        <div><strong>Service:</strong> {displayLog.source.serviceName}</div>
+                                        <div><strong>Runtime:</strong> <span>{displayLog.source.runtime === "node" ? "Node.js" : "Browser"}</span></div>
+                                        <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
                                       </div>
                                     </div>
 
-                                    <div className="col-md-6">
-                                      <h3 className="text-uppercase small fw-bold mb-2">🔗 Correlation</h3>
+                                    <div>
+                                      <h3>Correlation</h3>
                                       <div className="log-metadata">
                                         {displayLog.correlation.requestId && (
                                           <div><strong>Request ID:</strong> <code>{displayLog.correlation.requestId}</code></div>
@@ -389,20 +394,20 @@ export const LogTable: React.FC<LogTableProps> = ({
                                           <div><strong>User ID:</strong> <code>{displayLog.correlation.userId}</code></div>
                                         )}
                                         {!displayLog.correlation.requestId && !displayLog.correlation.sessionId && !displayLog.correlation.userId && (
-                                          <div className="text-muted small">No correlation data</div>
+                                          <div>No correlation data</div>
                                         )}
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="alert alert-info small mb-0">
-                                    <strong>Note:</strong> Click to see full log details including source information and correlation data.
+                                  <div className="detail-note">
+                                    Full source and correlation details appear here once they load.
                                   </div>
                                 )}
 
-                                <div className="mt-3">
-                                  <h3 className="text-uppercase small fw-bold mb-2">🆔 Event ID</h3>
-                                  <code className="d-inline-block p-2 bg-light rounded small">{log.eventId}</code>
+                                <div className="detail-block">
+                                  <h3>Event ID</h3>
+                                  <code className="event-id">{log.eventId}</code>
                                 </div>
                               </>
                             );
@@ -413,24 +418,23 @@ export const LogTable: React.FC<LogTableProps> = ({
                   </tr>
                 )}
               </React.Fragment>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 
-        {/* Auto-load sentinel: when visible we call onLoadMore silently (no button). */}
-        <div className="p-3 text-center">
+        <div className="load-more">
           {loadingMore ? (
-            <div className="spinner-border text-primary" role="status">
+            <div className="ring" role="status">
               <span className="visually-hidden">Loading more...</span>
             </div>
           ) : null}
 
-          {/* Render an invisible sentinel only when there's more to load and a handler is provided */}
           {hasMore && onLoadMore ? (
             <div
               data-testid="load-more-sentinel"
               ref={sentinelRef}
-              style={{ height: 1, width: '100%' }}
+              style={{ height: 1, width: "100%" }}
               aria-hidden="true"
             />
           ) : null}

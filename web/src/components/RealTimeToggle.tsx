@@ -22,9 +22,9 @@ export const RealTimeToggle: React.FC<RealTimeToggleProps> = ({ isEnabled, onTog
 
   return (
     <div className="realtime-toggle">
-      <h3 className="mb-3">⚡ Real-Time Mode</h3>
+      <h3>Real-time mode</h3>
 
-      <div className="form-check form-switch">
+      <label className={`live-switch${isEnabled ? " is-on" : ""}`} htmlFor="rtToggle">
         <input
           className="form-check-input"
           type="checkbox"
@@ -33,42 +33,18 @@ export const RealTimeToggle: React.FC<RealTimeToggleProps> = ({ isEnabled, onTog
           onChange={handleToggle}
           disabled={connecting}
         />
-        <label className="form-check-label" htmlFor="rtToggle">
-          Stream logs in real-time
-        </label>
-      </div>
+        Stream logs in real-time
+      </label>
 
-      <small className="text-muted d-block mt-2">
-        {connecting && "🔄 Connecting..."}
-        {!connecting && isEnabled && "✅ Connected - receiving live logs"}
-        {!connecting && !isEnabled && "📚 Browse stored logs"}
-      </small>
+      <p className="panel-kicker">
+        {connecting && "Connecting..."}
+        {!connecting && isEnabled && "Connected — receiving live logs"}
+        {!connecting && !isEnabled && "Browse stored logs"}
+      </p>
 
-      <div className="mt-3 p-3 bg-light rounded border-start border-3" style={{borderColor: isEnabled ? "#198754" : "#6c757d"}}>
-        <small className="text-muted">
-          <strong>Mode:</strong>
-          <div className="d-flex justify-content-between align-items-center mt-2">
-            <span>
-              {isEnabled ? "🟢 Live" : "⚪ Historical"}
-            </span>
-            <span className="badge" style={{backgroundColor: isEnabled ? "#198754" : "#6c757d"}}>
-              {isEnabled ? "Real-time" : "Search"}
-            </span>
-          </div>
-        </small>
-      </div>
-
-      <div className="mt-3">
-        <small className="text-muted d-block mb-2">
-          <strong>Settings:</strong>
-        </small>
-        <small className="text-muted">
-          • Filters disabled in real-time mode
-          <br />
-          • Latest 100 logs kept in memory
-          <br />
-          • Auto-reconnect on disconnect
-        </small>
+      <div className="filter-callout">
+        <strong>{isEnabled ? "Live" : "Historical"}</strong>
+        <div>{isEnabled ? "Real-time" : "Search"}</div>
       </div>
     </div>
   );
