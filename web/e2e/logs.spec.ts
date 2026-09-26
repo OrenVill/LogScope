@@ -53,8 +53,7 @@ test('search + expand lazy-load + accessibility smoke', async ({ page }) => {
 
   // Wait for table rows to render (longer timeout for slow CI)
   await page.waitForSelector('tbody tr', { timeout: 30000 })
-  const firstRowToggle = page.locator('tbody tr').first().locator('td').first()
-  await firstRowToggle.click()
+  await page.locator('tbody tr').first().locator('.expand-btn').click()
   await expect(page.locator('.log-details')).toBeVisible()
 
   const accessibilityScan = await new AxeBuilder({ page }).analyze()
@@ -120,7 +119,7 @@ test('real-time: new log appears when posted to backend', async ({ page }) => {
 
     // Use the UI search input to bring the log into the table
     await page.fill('input[placeholder="Search in content"]', unique)
-    await page.click('button:has-text("🔍 Search")')
+    await page.click('button:has-text("Search")')
     await page.waitForSelector('tbody tr', { timeout: 5000 })
   }
 
@@ -163,7 +162,7 @@ test('correlation filter returns correlated logs', async ({ page }) => {
 
   // Use filter panel to search by requestId
   await page.fill('input[placeholder="Correlation ID"]', reqId)
-  await page.click('button:has-text("🔍 Search")')
+  await page.click('button:has-text("Search")')
 
   // Wait for results and assert both messages are present
   await page.waitForSelector('tbody tr')
@@ -234,7 +233,7 @@ test('copy data button places JSON on clipboard', async ({ page }) => {
 
     // Use UI search to surface result
     await page.fill('input[placeholder="Search in content"]', unique)
-    await page.click('button:has-text("🔍 Search")')
+    await page.click('button:has-text("Search")')
     await page.waitForSelector('tbody tr', { timeout: 5000 })
   }
 
@@ -246,7 +245,7 @@ test('copy data button places JSON on clipboard', async ({ page }) => {
     const text = await cell.textContent()
     if (text && text.includes(unique)) {
       // click expand arrow
-      await rows.nth(i).locator('td').first().click()
+      await rows.nth(i).locator('.expand-btn').click()
       break
     }
   }
