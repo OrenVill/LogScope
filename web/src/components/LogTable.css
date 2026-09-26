@@ -201,6 +201,44 @@
   color: var(--ink);
 }
 
+.repeat-count {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+
+.log-table tbody tr.is-selected > td {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-solid));
+}
+
+.file-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-link,
+.id-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .message-preview {
   display: block;
   max-width: 460px;
