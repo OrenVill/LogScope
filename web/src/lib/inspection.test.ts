@@ -3,9 +3,14 @@ import {
   acceptLiveLog,
   editorLink,
   flushPending,
+  formatDuration,
   groupConsecutive,
   isTypingTarget,
   newestWithLevel,
+  primitiveFields,
+  relativeTime,
+  signatureCounts,
+  slowestStepIndex,
 } from './inspection'
 
 describe('groupConsecutive', () => {
@@ -79,6 +84,45 @@ describe('newestWithLevel', () => {
       'critical',
     )
     expect(latest?.eventId).toBe('new')
+  })
+})
+
+describe('trace timing', () => {
+  it('formats gaps and marks the slowest step', () => {
+    expect(formatDuration(240)).toBe('+240ms')
+    expect(formatDuration(2400)).toBe('+2.4s')
+    expect(formatDuration(86_400_000)).toBe('+1d')
+    const stamps = ['2026-01-01T00:00:00Z', '2026-01-01T00:00:01Z', '2026-01-01T00:00:09Z']
+    expect(slowestStepIndex(stamps)).toBe(2)
+  })
+})
+
+describe('relativeTime', () => {
+  it('describes a recent past timestamp', () => {
+    const now = new Date('2026-01-01T00:01:00Z').getTime()
+    expect(relativeTime('2026-01-01T00:00:48Z', now)).toBe('12s ago')
+    expect(relativeTime('2026-01-01T00:00:59Z', now)).toBe('just now')
+  })
+})
+
+describe('signatureCounts', () => {
+  it('counts matching logs that are not adjacent', () => {
+    const logs = [
+      { eventId: 'a', level: 'warn', subject: 'probe', message: 'slow' },
+      { eventId: 'b', level: 'info', subject: 'other', message: 'ok' },
+      { eventId: 'c', level: 'warn', subject: 'probe', message: 'slow' },
+    ]
+    const counts = signatureCounts(logs)
+    expect(counts.get('warn\0probe\0slow')).toBe(2)
+  })
+})
+
+describe('primitiveFields', () => {
+  it('lists scalar data fields', () => {
+    expect(primitiveFields({ sku: 'lens-01', timeoutMs: 2500, nested: { a: 1 } })).toEqual([
+      { key: 'sku', value: 'lens-01' },
+      { key: 'timeoutMs', value: '2500' },
+    ])
   })
 })
 

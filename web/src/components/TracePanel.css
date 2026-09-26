@@ -81,3 +81,24 @@
 .trace-error {
   color: var(--danger);
 }
+
+.trace-gap {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.trace-gap.is-slowest,
+.trace-item.is-slowest {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.trace-gap.is-slowest {
+  color: var(--warn);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.trace-item.is-focus {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}

@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import type { LogEntry, LogLevel, LogSummary } from "../types/log";
 import { logsApi } from "../api/logsService";
-import { editorLink, groupConsecutive, isTypingTarget } from "../lib/inspection";
+import { editorLink, groupConsecutive, isTypingTarget, logSignature, primitiveFields, relativeTime, signatureCounts } from "../lib/inspection";
+import type { SearchFilters } from "../types/api";
 import "./LogTable.css";
 
 type Log = LogEntry | LogSummary;
@@ -27,6 +28,8 @@ interface LogTableProps {
   onFollowChange?: (following: boolean) => void;
   onExpandedChange?: (expanded: boolean) => void;
   onOpenTrace?: (target: TraceTarget) => void;
+  onOpenContext?: (eventId: string) => void;
+  onApplyFilter?: (filters: SearchFilters) => void;
   onFocusSearch?: () => void;
 }
 
@@ -56,10 +59,13 @@ export const LogTable: React.FC<LogTableProps> = ({
   onFollowChange,
   onExpandedChange,
   onOpenTrace,
+  onOpenContext,
+  onApplyFilter,
   onFocusSearch,
 }) => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [fullLogs, setFullLogs] = useState<Map<string, LogEntry>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
@@ -216,6 +222,12 @@ export const LogTable: React.FC<LogTableProps> = ({
   }, [logs, sortBy, sortOrder]);
 
   const groups = useMemo(() => groupConsecutive(sortedLogs), [sortedLogs]);
+  const matchCounts = useMemo(() => signatureCounts(sortedLogs), [sortedLogs]);
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const toggleSort = (column: "timestamp" | "level") => {
     if (sortBy === column) {
@@ -428,15 +440,39 @@ export const LogTable: React.FC<LogTableProps> = ({
                     </span>
                   </td>
                   <td>
-                    <span className="ts">
-                      {stamp.time}
-                      <small>{stamp.day}</small>
+                    <span className="ts" title={new Date(log.timestamp).toLocaleString()}>
+                      {relativeTime(log.timestamp, now)}
+                      <small>{stamp.day} {stamp.time}</small>
                     </span>
+                    <button
+                      type="button"
+                      className="row-action"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenContext?.(log.eventId);
+                      }}
+                    >
+                      Context
+                    </button>
                   </td>
                   <td>
-                    <span className="subject-name">{log.subject}</span>
+                    <button
+                      type="button"
+                      className="subject-name subject-filter"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onApplyFilter?.({ subject: log.subject });
+                      }}
+                    >
+                      {log.subject}
+                    </button>
                     {group.count > 1 && (
-                      <span className="repeat-count" title={`${group.count} identical events`}>×{group.count}</span>
+                      <span className="repeat-count" title={`${group.count} identical events in a row`}>×{group.count}</span>
+                    )}
+                    {(matchCounts.get(logSignature(log)) ?? 1) > group.count && (
+                      <span className="in-view-count" title="Matching events in this view, including ones that are not adjacent">
+                        {matchCounts.get(logSignature(log))} in view
+                      </span>
                     )}
                   </td>
                   <td>
@@ -485,6 +521,20 @@ export const LogTable: React.FC<LogTableProps> = ({
                                       </button>
                                     </div>
                                     <pre className="log-content-display">{formatContent(displayLog.data)}</pre>
+                                    {primitiveFields(displayLog.data).length > 0 && (
+                                      <div className="value-filters">
+                                        {primitiveFields(displayLog.data).map((field) => (
+                                          <button
+                                            key={field.key}
+                                            type="button"
+                                            className="value-chip"
+                                            onClick={() => onApplyFilter?.({ text: field.value })}
+                                          >
+                                            {field.key}: {field.value}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 ) : null}
 
@@ -515,21 +565,36 @@ export const LogTable: React.FC<LogTableProps> = ({
                                         {displayLog.correlation.requestId && (
                                           <div>
                                             <strong>Request ID:</strong>
-                                            <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "request", id: displayLog.correlation.requestId! })}>
-                                              {displayLog.correlation.requestId}
-                                            </button>
+                                            <span className="id-actions">
+                                              <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "request", id: displayLog.correlation.requestId! })}>
+                                                {displayLog.correlation.requestId}
+                                              </button>
+                                              <button type="button" className="row-action" onClick={() => onApplyFilter?.({ requestId: displayLog.correlation.requestId })}>
+                                                Filter
+                                              </button>
+                                            </span>
                                           </div>
                                         )}
                                         {displayLog.correlation.sessionId && (
                                           <div>
                                             <strong>Session ID:</strong>
-                                            <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "session", id: displayLog.correlation.sessionId! })}>
-                                              {displayLog.correlation.sessionId}
-                                            </button>
+                                            <span className="id-actions">
+                                              <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "session", id: displayLog.correlation.sessionId! })}>
+                                                {displayLog.correlation.sessionId}
+                                              </button>
+                                              <button type="button" className="row-action" onClick={() => onApplyFilter?.({ sessionId: displayLog.correlation.sessionId })}>
+                                                Filter
+                                              </button>
+                                            </span>
                                           </div>
                                         )}
                                         {displayLog.correlation.userId && (
-                                          <div><strong>User ID:</strong> <code>{displayLog.correlation.userId}</code></div>
+                                          <div>
+                                            <strong>User ID:</strong>
+                                            <button type="button" className="id-link" onClick={() => onApplyFilter?.({ text: displayLog.correlation.userId })}>
+                                              {displayLog.correlation.userId}
+                                            </button>
+                                          </div>
                                         )}
                                         {!displayLog.correlation.requestId && !displayLog.correlation.sessionId && !displayLog.correlation.userId && (
                                           <div>No correlation data</div>

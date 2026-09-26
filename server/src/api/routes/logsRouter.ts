@@ -322,6 +322,36 @@ export const createLogsRouter = (
   });
 
   /**
+   * GET /api/logs/around/:eventId?radius=10
+   * Logs before and after an event in time, ignoring search filters.
+   */
+  router.get("/around/:eventId", async (req: Request, res: Response) => {
+    try {
+      const radius = parseInt(req.query.radius as string) || 10;
+      const result = queryIndex.around(req.params.eventId, radius);
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          error: "Log not found",
+          errorCode: "NOT_FOUND",
+        });
+      }
+      res.json({
+        success: true,
+        data: result.logs,
+        focusIndex: result.focusIndex,
+      });
+    } catch (error) {
+      console.error("Error loading log context:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to load log context",
+        errorCode: "SERVER_ERROR",
+      });
+    }
+  });
+
+  /**
    * GET /api/logs/:eventId
    * Get full log details by event ID
    * IMPORTANT: This must be the last GET route to avoid shadowing other paths
