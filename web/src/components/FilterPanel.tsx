@@ -1,12 +1,18 @@
 import React, { useState } from "react";
-import type { SearchFilters, LogLevel } from "../types/api";
+import type { SearchFilters, LogLevel, ArchiveEnv, ArchiveService } from "../types/api";
 import "./FilterPanel.css";
 
 interface FilterPanelProps {
   onSearch: (filters: SearchFilters) => void;
   isRealTime: boolean;
   preset?: { nonce: number; filters: SearchFilters } | null;
+  showArchiveFilters?: boolean;
+  defaultEnv?: ArchiveEnv;
+  defaultService?: ArchiveService;
 }
+
+const ENV_OPTIONS: ArchiveEnv[] = ["dev", "preprod", "prod"];
+const SERVICE_OPTIONS: ArchiveService[] = ["api", "worker"];
 
 const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "critical", "success"];
 
@@ -15,19 +21,37 @@ const AUTO_APPLY_DEBOUNCE_MS = 400;
 /**
  * FilterPanel component - search and filter controls
  */
-export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, preset = null }) => {
+export const FilterPanel: React.FC<FilterPanelProps> = ({
+  onSearch,
+  isRealTime,
+  preset = null,
+  showArchiveFilters = false,
+  defaultEnv = "prod",
+  defaultService = "api",
+}) => {
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
+  const [path, setPath] = useState("");
+  const [status, setStatus] = useState("");
   const [level, setLevel] = useState<LogLevel | "">("");
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
   const [requestId, setRequestId] = useState("");
   const [sessionId, setSessionId] = useState("");
+  const [env, setEnv] = useState<ArchiveEnv>(defaultEnv);
+  const [service, setService] = useState<ArchiveService>(defaultService);
   const [autoApply, setAutoApply] = useState(true);
+
+  React.useEffect(() => {
+    setEnv(defaultEnv);
+    setService(defaultService);
+  }, [defaultEnv, defaultService]);
 
   // element ids for accessibility
   const subjectId = "filter-subject";
   const textId = "filter-text";
+  const pathId = "filter-path";
+  const statusId = "filter-status";
   const timeFromId = "filter-timefrom";
   const timeToId = "filter-toto";
   const requestIdId = "filter-requestId";
@@ -38,13 +62,19 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, 
     const filters: SearchFilters = {};
     if (subject) filters.subject = subject;
     if (text) filters.text = text;
+    if (path) filters.path = path;
+    if (status) filters.status = status;
     if (level) filters.level = level as LogLevel;
     if (timeFrom) filters.timeFrom = timeFrom;
     if (timeTo) filters.timeTo = timeTo;
     if (requestId) filters.requestId = requestId;
     if (sessionId) filters.sessionId = sessionId;
+    if (showArchiveFilters) {
+      filters.env = env;
+      filters.service = service;
+    }
     return filters;
-  }, [subject, text, level, timeFrom, timeTo, requestId, sessionId]);
+  }, [subject, text, path, status, level, timeFrom, timeTo, requestId, sessionId, showArchiveFilters, env, service]);
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(buildFilters());
@@ -53,12 +83,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, 
   const handleClear = () => {
     setSubject("");
     setText("");
+    setPath("");
+    setStatus("");
     setLevel("");
     setTimeFrom("");
     setTimeTo("");
     setRequestId("");
     setSessionId("");
-    onSearch({});
+    if (showArchiveFilters) {
+      setEnv(defaultEnv);
+      setService(defaultService);
+    }
+    onSearch(showArchiveFilters ? { env: defaultEnv, service: defaultService } : {});
   };
 
   // Debounced auto-apply effect: watches filter inputs and calls onSearch when autoApply is enabled
@@ -67,12 +103,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, 
     const next = preset.filters;
     setSubject(next.subject ?? "");
     setText(next.text ?? "");
+    setPath(next.path ?? "");
+    setStatus(next.status ?? "");
     setLevel((next.level as LogLevel) ?? "");
     setTimeFrom(next.timeFrom ?? "");
     setTimeTo(next.timeTo ?? "");
     setRequestId(next.requestId ?? "");
     setSessionId(next.sessionId ?? "");
-    onSearch(next);
+    const envValue = next.env ?? env;
+    const serviceValue = next.service ?? service;
+    if (next.env) setEnv(next.env);
+    if (next.service) setService(next.service);
+    onSearch(showArchiveFilters ? { env: envValue, service: serviceValue, ...next } : next);
   }, [preset?.nonce]);
 
   React.useEffect(() => {
@@ -95,6 +137,37 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, 
       )}
 
       <form className="filter-form" onSubmit={handleSearch}>
+        {showArchiveFilters && (
+          <>
+            <div className="filter-field">
+              <label htmlFor="filter-env">Environment</label>
+              <select
+                id="filter-env"
+                className="form-select"
+                value={env}
+                onChange={(e) => setEnv(e.target.value as ArchiveEnv)}
+              >
+                {ENV_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-field">
+              <label htmlFor="filter-service">Service</label>
+              <select
+                id="filter-service"
+                className="form-select"
+                value={service}
+                onChange={(e) => setService(e.target.value as ArchiveService)}
+              >
+                {SERVICE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
         <div className="filter-field">
           <div className="filter-label-row">
             <label htmlFor={subjectId}>Subject</label>
@@ -145,6 +218,30 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, 
             placeholder="Search in content"
             value={text}
             onChange={(e) => setText(e.target.value)}
+          />
+        </div>
+
+        <div className="filter-field">
+          <label htmlFor={pathId}>Path</label>
+          <input
+            id={pathId}
+            type="text"
+            className="form-control"
+            placeholder="/status, /api/…"
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+          />
+        </div>
+
+        <div className="filter-field">
+          <label htmlFor={statusId}>HTTP status</label>
+          <input
+            id={statusId}
+            type="text"
+            className="form-control"
+            placeholder="200, 500"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
           />
         </div>
 

@@ -1,0 +1,1 @@
+{"svc":"API","t0":1790409600000,"pod":"api-abc","Pc":{"GET /api/auth/status 200":42},"I":{"GET /api/chat 200":[0,1200,2400]},"W":{"GET /api/chat 404":{"dt":[3600],"rid":["req-warn-1"],"ms":[12]}},"E":[{"dt":5000,"k":"POST /api/chat-stream 500","rid":"req-err-1","msg":"stream failed","d":{"stack":"Error: boom"}}]}

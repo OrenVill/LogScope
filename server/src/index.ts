@@ -13,6 +13,10 @@ import { createStarredStorage } from "./storage/starredStorage.js";
 import { createAutoCleanup } from "./cleanup/autoCleanup.js";
 import { createLogsRouter } from "./api/routes/logsRouter.js";
 import { WsLogServer } from "./ws/wsServer.js";
+import { loadArchiveBucketConfig, isBucketReadMode } from "./archive/bucketConfig.js";
+import { createBucketQueryIndex } from "./archive/bucketQueryIndex.js";
+import { createS3Client } from "./archive/s3LogReader.js";
+import { S3LandingTailPoller } from "./archive/s3LandingTail.js";
 
 // Load environment variables
 // Prefer a `.env` in the server folder; if not present, fall back to repository root `.env`.
@@ -42,7 +46,11 @@ const LOG_DELETE_COUNT = parseInt(process.env.LOG_DELETE_COUNT || "100", 10);
 
 // Initialize storage and query index
 const fileStorage = createFileStorage(LOG_DIR);
-const queryIndex = createQueryIndex(MAX_INDEX_SIZE);
+const bucketConfig = loadArchiveBucketConfig();
+const readOnlyArchive = isBucketReadMode(bucketConfig);
+const queryIndex = readOnlyArchive
+  ? createBucketQueryIndex(bucketConfig)
+  : createQueryIndex(MAX_INDEX_SIZE);
 const starredStorage = createStarredStorage(LOG_DIR);
 
 // Create HTTP server for WebSocket support
@@ -71,15 +79,22 @@ app.get("/health", (req, res) => {
     await starredStorage.load();
     console.log(`Loaded ${starredStorage.getAll().size} starred log(s)`);
 
-    // Load existing logs and build index
-    const backendLogs = await fileStorage.readLogs("node");
-    const frontendLogs = await fileStorage.readLogs("browser");
-    const allLogs = [...backendLogs, ...frontendLogs].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
+    if (readOnlyArchive) {
+      console.log(
+        `[Archive] S3 read-only mode: bucket=${bucketConfig.bucket} region=${bucketConfig.region} ` +
+          `default env=${bucketConfig.defaultEnv} service=${bucketConfig.defaultService}`
+      );
+      await queryIndex.buildIndex([]);
+    } else {
+      const backendLogs = await fileStorage.readLogs("node");
+      const frontendLogs = await fileStorage.readLogs("browser");
+      const allLogs = [...backendLogs, ...frontendLogs].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
 
-    await queryIndex.buildIndex(allLogs);
-    console.log(`Loaded ${allLogs.length} logs into query index`);
+      await queryIndex.buildIndex(allLogs);
+      console.log(`Loaded ${allLogs.length} logs into query index`);
+    }
 
     // Security banner
     const configuredKey = getConfiguredApiKey();
@@ -96,23 +111,43 @@ app.get("/health", (req, res) => {
     wsLogServer = new WsLogServer(httpServer, configuredKey);
     console.log("WebSocket server initialized on /ws");
 
-    // Mount API key auth + routes
-    app.use("/api/logs", apiKeyAuth, createLogsRouter(fileStorage, queryIndex, wsLogServer, starredStorage));
+    if (readOnlyArchive) {
+      const archiveTailPoller = new S3LandingTailPoller(
+        bucketConfig,
+        createS3Client(bucketConfig),
+        wsLogServer
+      );
+      archiveTailPoller.start();
+      console.log("[Archive] S3 landing tail poller started (current UTC hour)");
+    }
 
-    // Start auto-cleanup service
-    const autoCleanup = createAutoCleanup({
-      fileStorage,
-      queryIndex,
-      starredStorage,
-      maxAgeMs: LOG_MAX_AGE_MS,
-      maxTotal: LOG_MAX_TOTAL,
-      deleteCount: LOG_DELETE_COUNT,
-    });
-    setInterval(() => autoCleanup.runCleanup(), CLEANUP_INTERVAL_MS);
-    console.log(
-      `Auto-cleanup scheduled every ${CLEANUP_INTERVAL_MS / 1000}s ` +
-      `(max age: ${LOG_MAX_AGE_MS / 1000}s, max total: ${LOG_MAX_TOTAL}, delete count: ${LOG_DELETE_COUNT})`
+    // Mount API key auth + routes
+    app.use(
+      "/api/logs",
+      apiKeyAuth,
+      createLogsRouter(fileStorage, queryIndex, wsLogServer, starredStorage, {
+        readOnlyArchive,
+        bucketConfig: readOnlyArchive ? bucketConfig : undefined,
+      })
     );
+
+    if (!readOnlyArchive) {
+      const autoCleanup = createAutoCleanup({
+        fileStorage,
+        queryIndex,
+        starredStorage,
+        maxAgeMs: LOG_MAX_AGE_MS,
+        maxTotal: LOG_MAX_TOTAL,
+        deleteCount: LOG_DELETE_COUNT,
+      });
+      setInterval(() => autoCleanup.runCleanup(), CLEANUP_INTERVAL_MS);
+      console.log(
+        `Auto-cleanup scheduled every ${CLEANUP_INTERVAL_MS / 1000}s ` +
+        `(max age: ${LOG_MAX_AGE_MS / 1000}s, max total: ${LOG_MAX_TOTAL}, delete count: ${LOG_DELETE_COUNT})`
+      );
+    } else {
+      console.log("[Archive] Auto-cleanup disabled (read-only S3 viewer)");
+    }
 
     // Serve frontend assets if a built `dist` exists (either bundled into server
     // or `web/dist` in the repo). This makes the server usable in production mode

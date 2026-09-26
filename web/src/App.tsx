@@ -7,7 +7,7 @@ import { TracePanel } from './components/TracePanel'
 import { ContextPanel } from './components/ContextPanel'
 import { logsApi } from './api/logsService'
 import { acceptLiveLog, flushPending, newestWithLevel } from './lib/inspection'
-import type { LogEntry, LogLevel, SearchFilters } from './types/api'
+import type { LogEntry, LogLevel, SearchFilters, ArchiveConfig } from './types/api'
 
 interface ErrorState {
   message: string
@@ -30,6 +30,7 @@ function App() {
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
+  const [archiveConfig, setArchiveConfig] = useState<ArchiveConfig | null>(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [followTick, setFollowTick] = useState(0)
   const [focusEventId, setFocusEventId] = useState<string | null>(null)
@@ -202,6 +203,13 @@ function App() {
   useEffect(() => {
     loadLogsRef.current = loadLogs
   }, [loadLogs])
+
+  useEffect(() => {
+    void (async () => {
+      const cfg = await logsApi.getArchiveConfig()
+      if (cfg.success && cfg.data) setArchiveConfig(cfg.data)
+    })()
+  }, [])
 
   // Load initial page on mount
   useEffect(() => {
@@ -542,7 +550,14 @@ function App() {
           {sidebarCollapsed ? (
             <div className="sidebar-collapsed-mark">Filters</div>
           ) : (
-            <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} preset={filterPreset} />
+            <FilterPanel
+              onSearch={handleSearch}
+              isRealTime={isRealTime}
+              preset={filterPreset}
+              showArchiveFilters={archiveConfig?.readOnly === true}
+              defaultEnv={archiveConfig?.defaultEnv}
+              defaultService={archiveConfig?.defaultService}
+            />
           )}
         </aside>
 

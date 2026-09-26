@@ -21,6 +21,14 @@ export interface IQueryIndex {
     text?: string;
     requestId?: string;
     sessionId?: string;
+    /** HTTP path fragment, for example `/status` or `/api/`. */
+    path?: string;
+    /** HTTP status code, for example `200` or `500`. */
+    status?: string;
+    /** archive bucket viewer: dev | preprod | prod */
+    env?: string;
+    /** archive bucket viewer: api | worker */
+    service?: string;
     limit?: number;
     offset?: number;
     lightweight?: boolean;
@@ -58,7 +66,20 @@ export interface IQueryIndex {
 /**
  * Convert a full LogEntry to a lightweight LogSummary
  */
-const toLogSummary = (log: LogEntry): LogSummary => ({
+export function logMatchesPath(log: LogEntry, path: string): boolean {
+  const needle = path.toLowerCase();
+  const values = [log.source.path, log.subject].filter((value): value is string => Boolean(value));
+  return values.some((value) => value.toLowerCase().includes(needle));
+}
+
+export function logMatchesStatus(log: LogEntry, status: string): boolean {
+  const wanted = status.trim();
+  if (!wanted) return true;
+  if (log.source.status !== undefined && String(log.source.status) === wanted) return true;
+  return new RegExp(`(?:^|\\s)${wanted}(?:\\s|$)`).test(log.subject);
+}
+
+export const toLogSummary = (log: LogEntry): LogSummary => ({
   eventId: log.eventId,
   timestamp: log.timestamp,
   level: log.level,
@@ -67,6 +88,12 @@ const toLogSummary = (log: LogEntry): LogSummary => ({
   source: {
     runtime: log.source.runtime,
     serviceName: log.source.serviceName,
+    ...(log.source.env ? { env: log.source.env } : {}),
+    ...(log.source.pod ? { pod: log.source.pod } : {}),
+    ...(log.source.method ? { method: log.source.method } : {}),
+    ...(log.source.path ? { path: log.source.path } : {}),
+    ...(log.source.status !== undefined ? { status: log.source.status } : {}),
+    ...(log.source.origin ? { origin: log.source.origin } : {}),
   },
 });
 
@@ -203,6 +230,14 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
         results = results.filter(
           (log) => log.correlation.sessionId === filters.sessionId
         );
+      }
+
+      if (filters.path) {
+        results = results.filter((log) => logMatchesPath(log, filters.path!));
+      }
+
+      if (filters.status) {
+        results = results.filter((log) => logMatchesStatus(log, filters.status!));
       }
 
       // Calculate total before pagination
