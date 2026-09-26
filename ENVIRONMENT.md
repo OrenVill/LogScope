@@ -84,7 +84,8 @@ When **`LOGS_S3_BUCKET`** is set, LogScope runs as a **read-only viewer** over t
 | **`LOGS_S3_ENDPOINT`** | (unset) | Optional custom S3 endpoint (path-style) |
 | **`LOGS_S3_ACCESS_KEY_ID`** / **`LOGS_S3_SECRET_ACCESS_KEY`** | (unset) | Optional static credentials; otherwise default AWS chain |
 | **`LOGS_S3_DEFAULT_ENV`** | `dev` | Default `env` query param (`dev`, `preprod`, `prod`) |
-| **`LOGS_S3_DEFAULT_SERVICE`** | `api` | Default service (`api`, `worker`) |
+| **`LOGS_S3_DEFAULT_SERVICE`** | `api` | Default service folder under each env |
+| **`LOGS_S3_SERVICES`** | (default service) | Comma-separated service folders for the Service dropdown |
 | **`LOGS_S3_INCLUDE_LANDING`** | `true` | Also read raw `landing/` for hours with no `info/` or `durable/` compacted object |
 | **`LOGS_S3_MAX_HOURS`** | `168` | Max UTC hours scanned per search |
 
@@ -103,7 +104,7 @@ LOGS_S3_BUCKET=logs-euc1 LOGS_S3_REGION=eu-central-1 \
 Then query:
 
 ```bash
-curl -s 'http://localhost:3000/api/logs/search?env=prod&service=api&timeFrom=2026-09-25T00:00:00.000Z&timeTo=2026-09-26T23:59:59.000Z&limit=20' | jq .
+curl -s 'http://localhost:3000/api/logs/search?env=dev&service=api&timeFrom=2026-09-25T00:00:00.000Z&timeTo=2026-09-26T23:59:59.000Z&limit=20' | jq .
 ```
 
 ### Security

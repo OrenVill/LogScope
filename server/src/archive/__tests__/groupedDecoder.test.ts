@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { decodeGroupedLines, expandDeltas } from "../groupedDecoder.js";
-import { decodedEventToLogEntry, eventIdForDecoded, landingJsonLineToLogEntry } from "../archiveMapper.js";
+import { decodedEventToLogEntry, eventIdForDecoded, isArchiveService, landingJsonLineToLogEntry } from "../archiveMapper.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixture = readFileSync(join(__dirname, "fixtures/grouped-hour.ndjson"), "utf8");
@@ -26,6 +26,15 @@ describe("groupedDecoder", () => {
 });
 
 describe("archiveMapper", () => {
+  it("allows a service folder name and rejects path segments", () => {
+    expect(isArchiveService("api")).toBe(true);
+    expect(isArchiveService("logs-api")).toBe(true);
+    expect(isArchiveService("a/b")).toBe(false);
+    expect(isArchiveService("..")).toBe(false);
+    expect(isArchiveService("")).toBe(false);
+  });
+
+
   it("maps decoded events to LogScope LogEntry rows", () => {
     const events = decodeGroupedLines(fixture.split("\n"));
     const entry = decodedEventToLogEntry(events[0], "prod", "api");

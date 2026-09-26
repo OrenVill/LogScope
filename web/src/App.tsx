@@ -557,6 +557,7 @@ function App() {
               showArchiveFilters={archiveConfig?.readOnly === true}
               defaultEnv={archiveConfig?.defaultEnv}
               defaultService={archiveConfig?.defaultService}
+              services={archiveConfig?.services}
             />
           )}
         </aside>
