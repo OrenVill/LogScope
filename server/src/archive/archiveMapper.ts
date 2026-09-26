@@ -3,20 +3,15 @@ import type { LogEntry, LogLevel } from "../types/index.js";
 import type { DecodedEvent } from "./groupedTypes.js";
 
 const VALID_ENVS = new Set(["dev", "preprod", "prod"]);
-const VALID_SERVICES = new Set(["api", "worker"]);
+/** One bucket folder name: letters, digits, and single hyphens. No slashes. */
+const SERVICE_SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function isArchiveEnv(value: string): boolean {
   return VALID_ENVS.has(value);
 }
 
 export function isArchiveService(value: string): boolean {
-  return VALID_SERVICES.has(value);
-}
-
-function mapSvcToServiceName(svc: string, fallbackService: string): string {
-  if (svc === "API") return "api";
-  if (svc === "Worker") return "worker";
-  return fallbackService;
+  return SERVICE_SEGMENT.test(value);
 }
 
 function mapLevel(level: DecodedEvent["level"]): LogLevel {
@@ -124,7 +119,7 @@ export function decodedEventToLogEntry(
   service: string,
   origin: "live" | "archive" = "archive"
 ): LogEntry {
-  const serviceName = mapSvcToServiceName(event.svc, service);
+  const serviceName = service;
   const message = buildMessage(event);
   const dataPayload = dataFor(event);
   const http = parseHttpRoute(event.key) ?? (event.msg ? parseHttpRoute(event.msg) : null);

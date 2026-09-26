@@ -9,10 +9,10 @@ interface FilterPanelProps {
   showArchiveFilters?: boolean;
   defaultEnv?: ArchiveEnv;
   defaultService?: ArchiveService;
+  services?: ArchiveService[];
 }
 
 const ENV_OPTIONS: ArchiveEnv[] = ["dev", "preprod", "prod"];
-const SERVICE_OPTIONS: ArchiveService[] = ["api", "worker"];
 
 const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "critical", "success"];
 
@@ -28,7 +28,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   showArchiveFilters = false,
   defaultEnv = "prod",
   defaultService = "api",
+  services,
 }) => {
+  const serviceOptions = services && services.length > 0 ? services : [defaultService];
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
   const [path, setPath] = useState("");
@@ -160,7 +162,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 value={service}
                 onChange={(e) => setService(e.target.value as ArchiveService)}
               >
-                {SERVICE_OPTIONS.map((opt) => (
+                {serviceOptions.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>

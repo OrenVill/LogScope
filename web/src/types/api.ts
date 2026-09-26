@@ -19,7 +19,8 @@ export interface ErrorResponse {
 export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
 
 export type ArchiveEnv = "dev" | "preprod" | "prod";
-export type ArchiveService = "api" | "worker";
+/** Bucket service folder name. */
+export type ArchiveService = string;
 
 export interface SearchFilters {
   timeFrom?: string;
