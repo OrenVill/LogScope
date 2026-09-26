@@ -45,5 +45,7 @@ describe('TracePanel', () => {
     const items = screen.getAllByRole('listitem')
     expect(items[0]).toHaveTextContent('started')
     expect(items[1]).toHaveTextContent('query failed')
+    expect(items[1]).toHaveTextContent('+1d')
+    expect(items[1]).toHaveTextContent('slowest')
   })
 })

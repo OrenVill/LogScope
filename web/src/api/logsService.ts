@@ -160,6 +160,29 @@ export class LogsApiClient {
   /**
    * Get a single log entry by ID
    */
+  async getLogContext(eventId: string, radius = 10): Promise<ApiResponse<LogEntry[]> & { focusIndex?: number }> {
+    try {
+      const response = await fetchWithRetry(
+        `${this.baseUrl}/api/logs/around/${encodeURIComponent(eventId)}?radius=${radius}`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Failed to load log context",
+          errorCode: data.errorCode || "HTTP_ERROR",
+        };
+      }
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+        errorCode: "NETWORK_ERROR",
+      };
+    }
+  }
+
   async getLogById(eventId: string): Promise<ApiResponse<LogEntry>> {
     try {
       const response = await fetchWithRetry(`${this.baseUrl}/api/logs/${eventId}`);

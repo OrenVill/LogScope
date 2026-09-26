@@ -48,6 +48,11 @@ export interface IQueryIndex {
    * Get a log by ID from the index
    */
   getById(eventId: string): LogEntry | null;
+
+  /**
+   * Logs immediately before and after an event, ordered by time.
+   */
+  around(eventId: string, radius?: number): { logs: LogEntry[]; focusIndex: number } | null;
 }
 
 /**
@@ -123,6 +128,18 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
       return index.get(eventId) || null;
     },
 
+    around: (eventId: string, radius = 10) => {
+      const span = Math.min(Math.max(radius, 1), 50);
+      const ordered = [...allLogs].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      const at = ordered.findIndex((log) => log.eventId === eventId);
+      if (at < 0) return null;
+      const start = Math.max(0, at - span);
+      const end = Math.min(ordered.length, at + span + 1);
+      return { logs: ordered.slice(start, end), focusIndex: at - start };
+    },
+
     query: async (filters) => {
       let results = [...allLogs];
 
@@ -162,7 +179,15 @@ export const createQueryIndex = (maxSize: number = 10000): IQueryIndex => {
               : JSON.stringify(log.data)
             : "";
           const dataMatch = dataStr.toLowerCase().includes(searchText);
-          return messageMatch || dataMatch;
+          const correlationValues = [
+            log.correlation.requestId,
+            log.correlation.sessionId,
+            log.correlation.userId,
+          ];
+          const correlationMatch = correlationValues.some(
+            (value) => value && value.toLowerCase().includes(searchText)
+          );
+          return messageMatch || dataMatch || correlationMatch;
         });
       }
 

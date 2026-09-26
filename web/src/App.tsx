@@ -4,6 +4,7 @@ import { FilterPanel } from './components/FilterPanel'
 import { LogTable, type TraceTarget } from './components/LogTable'
 import { StatsPanel } from './components/StatsPanel'
 import { TracePanel } from './components/TracePanel'
+import { ContextPanel } from './components/ContextPanel'
 import { logsApi } from './api/logsService'
 import { acceptLiveLog, flushPending, newestWithLevel } from './lib/inspection'
 import type { LogEntry, LogLevel, SearchFilters } from './types/api'
@@ -34,6 +35,8 @@ function App() {
   const [focusEventId, setFocusEventId] = useState<string | null>(null)
   const [focusNonce, setFocusNonce] = useState(0)
   const [trace, setTrace] = useState<TraceTarget | null>(null)
+  const [contextEventId, setContextEventId] = useState<string | null>(null)
+  const [filterPreset, setFilterPreset] = useState<{ nonce: number; filters: SearchFilters } | null>(null)
   const followingRef = useRef(true)
   const expandHoldRef = useRef(false)
   const pendingRef = useRef<LogEntry[]>([])
@@ -269,6 +272,23 @@ function App() {
   const focusSearch = () => {
     setSidebarCollapsed(false)
     requestAnimationFrame(() => document.getElementById('filter-text')?.focus())
+  }
+
+  const applyValueFilter = (filters: SearchFilters) => {
+    setRuntime('all')
+    setLevelFilter('all')
+    setSidebarCollapsed(false)
+    setFilterPreset({ nonce: Date.now(), filters })
+  }
+
+  const exportView = () => {
+    const blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'logscope-view.json'
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   // Connect to WebSocket (stable identity to avoid re-creating handlers)
@@ -522,7 +542,7 @@ function App() {
           {sidebarCollapsed ? (
             <div className="sidebar-collapsed-mark">Filters</div>
           ) : (
-            <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
+            <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} preset={filterPreset} />
           )}
         </aside>
 
@@ -548,6 +568,13 @@ function App() {
               <button className={runtime === 'frontend' ? 'is-active' : ''} onClick={() => setRuntime('frontend')}>Frontend</button>
             </div>
             <p className="pin-hint">Pin a log to keep it through cleanup. Keys: / search, j k move, Enter open, s pin.</p>
+            <button
+              className="btn-ghost"
+              onClick={exportView}
+              title="Download the logs currently loaded in this view"
+            >
+              Export view
+            </button>
             <button
               className="btn-danger"
               onClick={() => setShowClearModal(true)}
@@ -608,6 +635,8 @@ function App() {
             onFollowChange={handleFollowChange}
             onExpandedChange={handleExpandedChange}
             onOpenTrace={setTrace}
+            onOpenContext={setContextEventId}
+            onApplyFilter={applyValueFilter}
             onFocusSearch={focusSearch}
           />
 
@@ -621,6 +650,9 @@ function App() {
 
           {trace && (
             <TracePanel kind={trace.kind} id={trace.id} onClose={() => setTrace(null)} />
+          )}
+          {contextEventId && (
+            <ContextPanel eventId={contextEventId} onClose={() => setContextEventId(null)} />
           )}
         </main>
       </div>

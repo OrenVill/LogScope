@@ -5,6 +5,7 @@ import "./FilterPanel.css";
 interface FilterPanelProps {
   onSearch: (filters: SearchFilters) => void;
   isRealTime: boolean;
+  preset?: { nonce: number; filters: SearchFilters } | null;
 }
 
 const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "critical", "success"];
@@ -14,7 +15,7 @@ const AUTO_APPLY_DEBOUNCE_MS = 400;
 /**
  * FilterPanel component - search and filter controls
  */
-export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }) => {
+export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime, preset = null }) => {
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
   const [level, setLevel] = useState<LogLevel | "">("");
@@ -61,6 +62,19 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
   };
 
   // Debounced auto-apply effect: watches filter inputs and calls onSearch when autoApply is enabled
+  React.useEffect(() => {
+    if (!preset) return;
+    const next = preset.filters;
+    setSubject(next.subject ?? "");
+    setText(next.text ?? "");
+    setLevel((next.level as LogLevel) ?? "");
+    setTimeFrom(next.timeFrom ?? "");
+    setTimeTo(next.timeTo ?? "");
+    setRequestId(next.requestId ?? "");
+    setSessionId(next.sessionId ?? "");
+    onSearch(next);
+  }, [preset?.nonce]);
+
   React.useEffect(() => {
     if (!autoApply) return;
     const timer = setTimeout(() => {

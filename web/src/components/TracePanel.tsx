@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { logsApi } from "../api/logsService";
 import type { LogEntry } from "../types/log";
+import { formatDuration, slowestStepIndex } from "../lib/inspection";
 import "./TracePanel.css";
 
 interface TracePanelProps {
@@ -68,22 +69,34 @@ export const TracePanel: React.FC<TracePanelProps> = ({ kind, id, onClose }) => 
         {!loading && !error && logs.length === 0 && <p className="trace-empty">No correlated logs.</p>}
         {!loading && logs.length > 0 && (
           <ol className="trace-list">
-            {logs.map((log, index) => (
-              <li key={log.eventId} className={`trace-item log-row-${log.level}`}>
-                <span className="trace-index">{index + 1}</span>
-                <div>
-                  <div className="trace-meta">
-                    <time dateTime={log.timestamp}>{new Date(log.timestamp).toLocaleString()}</time>
-                    <span className="level-pill">
-                      <span className="level-dot" aria-hidden="true" />
-                      {log.level}
-                    </span>
+            {logs.map((log, index) => {
+              const slowest = slowestStepIndex(logs.map((item) => item.timestamp));
+              const gap = index === 0
+                ? null
+                : new Date(log.timestamp).getTime() - new Date(logs[index - 1].timestamp).getTime();
+              return (
+                <li key={log.eventId} className={`trace-item log-row-${log.level}${index === slowest ? " is-slowest" : ""}`}>
+                  <span className="trace-index">{index + 1}</span>
+                  <div>
+                    <div className="trace-meta">
+                      <time dateTime={log.timestamp}>{new Date(log.timestamp).toLocaleString()}</time>
+                      {gap !== null && (
+                        <span className={`trace-gap${index === slowest ? " is-slowest" : ""}`}>
+                          {formatDuration(gap)}
+                          {index === slowest ? " slowest" : ""}
+                        </span>
+                      )}
+                      <span className="level-pill">
+                        <span className="level-dot" aria-hidden="true" />
+                        {log.level}
+                      </span>
+                    </div>
+                    <strong>{log.subject}</strong>
+                    <p>{log.message || "No message"}</p>
                   </div>
-                  <strong>{log.subject}</strong>
-                  <p>{log.message || "No message"}</p>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ol>
         )}
       </div>
