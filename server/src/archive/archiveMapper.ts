@@ -32,13 +32,13 @@ function buildMessage(event: DecodedEvent): string {
   return event.key;
 }
 
-const HTTP_ROUTE = /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+)\s+(\d{3})$/;
+const HTTP_ROUTE = /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+?)(?:\s+-\s+|\s+)(\d{3})$/i;
 
-/** Subject keys look like `GET /api/chat 200`. */
+/** Compacted keys are `GET /api/chat 200`. Raw lines are `GET /status - 200`. */
 export function parseHttpRoute(key: string): { method: string; path: string; status: number } | null {
   const match = HTTP_ROUTE.exec(key.trim());
   if (!match) return null;
-  return { method: match[1], path: match[2], status: Number(match[3]) };
+  return { method: match[1].toUpperCase(), path: match[2], status: Number(match[3]) };
 }
 
 function readString(value: unknown): string | undefined {
@@ -47,11 +47,14 @@ function readString(value: unknown): string | undefined {
 
 /** Vector adds `pod` (or kubernetes.pod_name) on each raw landing line. */
 export function readPod(obj: Record<string, unknown>): string | undefined {
-  const direct = readString(obj.pod);
+  const direct = readString(obj.pod) ?? readString(obj.pod_name) ?? readString(obj.podName);
   if (direct) return direct;
-  const kubernetes = obj.kubernetes;
+  const kubernetes = obj.kubernetes ?? obj.k8s;
   if (kubernetes && typeof kubernetes === "object") {
-    return readString((kubernetes as Record<string, unknown>).pod_name);
+    const record = kubernetes as Record<string, unknown>;
+    const nested = record.pod;
+    const nestedName = nested && typeof nested === "object" ? (nested as Record<string, unknown>).name : nested;
+    return readString(record.pod_name) ?? readString(record.podName) ?? readString(nestedName);
   }
   return undefined;
 }
@@ -124,7 +127,7 @@ export function decodedEventToLogEntry(
   const serviceName = mapSvcToServiceName(event.svc, service);
   const message = buildMessage(event);
   const dataPayload = dataFor(event);
-  const http = parseHttpRoute(event.key);
+  const http = parseHttpRoute(event.key) ?? (event.msg ? parseHttpRoute(event.msg) : null);
   const pod = event.pod?.trim() || undefined;
   const requestId = requestIdFor(event, origin);
 
