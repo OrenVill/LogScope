@@ -14,10 +14,16 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({ eventId, onClose }) 
   const [focusIndex, setFocusIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedId, setLoadedId] = useState(eventId);
+
+  if (eventId !== loadedId) {
+    setLoadedId(eventId);
+    setLoading(true);
+    setError(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     logsApi.getLogContext(eventId, 10).then((response) => {
       if (cancelled) return;
       if (!response.success) {

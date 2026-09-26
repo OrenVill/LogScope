@@ -14,10 +14,16 @@ export const TracePanel: React.FC<TracePanelProps> = ({ kind, id, onClose }) => 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedKey, setLoadedKey] = useState(`${kind}:${id}`);
+
+  if (`${kind}:${id}` !== loadedKey) {
+    setLoadedKey(`${kind}:${id}`);
+    setLoading(true);
+    setError(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     const request =
       kind === "request"
         ? logsApi.getCorrelatedByRequestId(id, { limit: 200 })
