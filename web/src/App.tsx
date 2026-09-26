@@ -51,41 +51,42 @@ function App() {
     localStorage.setItem('logscope-sidebar-collapsed', JSON.stringify(sidebarCollapsed))
   }, [sidebarCollapsed])
 
-  // Handle sidebar resize
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
     isResizing.current = true
+    document.documentElement.classList.add('is-resizing')
   }
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current || !sidebarRef.current) return
-      
+
       const container = sidebarRef.current.parentElement
       if (!container) return
 
-      const containerRect = container.getBoundingClientRect()
-      const newWidth = e.clientX - containerRect.left
-      
-      // Constrain width between 200px and 450px
-      if (newWidth >= 200 && newWidth <= 450) {
+      const newWidth = e.clientX - container.getBoundingClientRect().left
+      if (newWidth >= 240 && newWidth <= 460) {
         setSidebarWidth(newWidth)
       }
     }
 
     const handleMouseUp = () => {
       isResizing.current = false
+      document.documentElement.classList.remove('is-resizing')
     }
 
-    if (isResizing.current) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
     }
   }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.bsTheme = isDarkMode ? 'dark' : 'light'
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light'
+  }, [isDarkMode])
 
   // Periodically sync totalCount from server to detect cleanup events
   useEffect(() => {
@@ -337,8 +338,8 @@ function App() {
 
   // Get error alert class based on error code
   const getErrorAlertClass = () => {
-    if (error?.isRateLimit) return 'alert alert-warning'
-    return 'alert alert-danger'
+    if (error?.isRateLimit) return 'banner banner-warn'
+    return 'banner banner-danger'
   }
 
   // Get error message with helpful context
@@ -373,220 +374,166 @@ function App() {
   }
 
   return (
-    <div className="app d-flex flex-column h-100" data-bs-theme={isDarkMode ? 'dark' : 'light'}>
-      <header className="app-header bg-dark text-white py-2 px-4 shadow">
-        <div className="container-fluid d-flex justify-content-between align-items-center">
-          <div className="app-logo-container">
-            <h1 className="visually-hidden">LogScope</h1>
-            <img src="/logo.svg" alt="LogScope Logo" className="app-logo" />
+    <div className="app" data-bs-theme={isDarkMode ? 'dark' : 'light'}>
+      <header className="topbar">
+        <div className="brand">
+          <img src="/mark.svg" alt="" className="brand-mark" />
+          <div>
+            <h1>Log<span>Scope</span></h1>
+            <p>Precision log inspection</p>
           </div>
-          
-          <div className="d-flex flex-column gap-2">
-            {hasCritical && (
-              <div className="mb-0 d-flex align-items-center gap-3" style={{
-                backgroundColor: '#a80000',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '4px',
-                animation: 'pulse-alert 0.8s infinite',
-                fontWeight: 600
-              }}>
-                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🚨</div>
-                <div>
-                  <strong style={{ fontSize: '1.1rem' }}>CRITICAL ALERT</strong><br />
-                  <small>Critical logs detected in the system</small>
-                </div>
-              </div>
-            )}
-            {hasNoIssues && (
-              <div className="mb-0 d-flex align-items-center gap-3" style={{
-                backgroundColor: '#28a745',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '4px',
-                animation: 'pulse-success 1.2s infinite',
-                fontWeight: 600
-              }}>
-                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>✅</div>
-                <div>
-                  <strong style={{ fontSize: '1.1rem' }}>ALL SYSTEMS OPERATIONAL</strong><br />
-                  <small>No errors, warnings, or critical logs</small>
-                </div>
-              </div>
-            )}
-          </div>
+        </div>
 
-          <div className="d-flex align-items-center gap-3" style={{ marginLeft: 'auto' }}>
-            <button
-              className="btn btn-sm btn-outline-light"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-            style={{ fontSize: '1.2rem', padding: '4px 8px' }}
+        <div className="topbar-status">
+          {hasCritical && (
+            <div className="status-pill status-pill-critical" role="status">
+              <span className="status-dot" aria-hidden="true" />
+              <span>
+                <strong>Critical</strong>
+                <small>A critical event is in view</small>
+              </span>
+            </div>
+          )}
+          {hasNoIssues && (
+            <div className="status-pill status-pill-ok" role="status">
+              <span className="status-dot" aria-hidden="true" />
+              <span>
+                <strong>Clear</strong>
+                <small>No warnings or errors in view</small>
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="topbar-actions">
+          <label className={`live-switch${isRealTime ? ' is-on' : ''}`} htmlFor="rtToggle">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="rtToggle"
+              checked={isRealTime}
+              onChange={(e) => toggleRealTime(e.target.checked)}
+            />
+            {isRealTime ? 'Live' : 'Historical'}
+          </label>
+
+          <button
+            className="icon-btn"
+            onClick={toggleDarkMode}
+            title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+            aria-label={isDarkMode ? 'Light Mode' : 'Dark Mode'}
           >
-            {sidebarCollapsed ? '→' : '←'}
+            {isDarkMode ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.1 5.1l1.6 1.6M17.3 17.3l1.6 1.6M18.9 5.1l-1.6 1.6M6.7 17.3l-1.6 1.6" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M16.5 13.2A6.8 6.8 0 0 1 10.7 4 7.2 7.2 0 1 0 16.5 13.2Z" strokeLinejoin="round" />
+              </svg>
+            )}
           </button>
 
           <button
-            className="btn btn-sm btn-outline-light"
-            onClick={toggleDarkMode}
-            title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
-            style={{ fontSize: '1.2rem', padding: '4px 8px' }}
+            className="icon-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+            aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
           >
-            {isDarkMode ? '☀️' : '🌙'}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+              <path d="M9.5 4.5v15" />
+            </svg>
           </button>
-
-            <div className="d-flex align-items-center gap-2" style={{ minWidth: '180px' }}>
-              <div className="form-check form-switch mb-0">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="rtToggle"
-                  checked={isRealTime}
-                  onChange={(e) => toggleRealTime(e.target.checked)}
-                  style={{ cursor: 'pointer' }}
-                />
-                <label className="form-check-label" htmlFor="rtToggle" style={{ cursor: 'pointer', marginBottom: 0, fontSize: '0.9rem' }}>
-                  {isRealTime ? '🟢 Live' : '⚪ Historical'}
-                </label>
-              </div>
-            </div>
-          </div>
         </div>
       </header>
 
-      <div className="app-container flex-grow-1 overflow-hidden d-flex gap-3 p-3" style={{ position: 'relative' }}>
-        <aside 
+      <div className="workspace">
+        <aside
           ref={sidebarRef}
-          className="sidebar bg-body rounded shadow-sm p-4 overflow-auto"
-          style={{ 
-            width: sidebarCollapsed ? '50px' : `${sidebarWidth}px`,
-            minWidth: sidebarCollapsed ? '50px' : '200px',
-            maxWidth: sidebarCollapsed ? '50px' : '450px',
-            transition: 'width 0.3s ease',
-            position: 'relative',
-            flexShrink: 0
-          }}
+          className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}
+          style={{ width: sidebarCollapsed ? 64 : sidebarWidth }}
         >
-          {/* Resize handle */}
           {!sidebarCollapsed && (
             <div
+              className="sidebar-resize-handle"
               onMouseDown={handleMouseDown}
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: '4px',
-                cursor: 'col-resize',
-                backgroundColor: 'transparent',
-                transition: 'background-color 0.2s ease',
-                zIndex: 10
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 123, 255, 0.5)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               title="Drag to resize sidebar"
+              role="separator"
+              aria-orientation="vertical"
             />
           )}
-          
-          {/* Collapse/expand indicator when collapsed */}
-          {sidebarCollapsed && (
-            <div className="d-flex justify-content-center align-items-center h-100" style={{ minHeight: '100px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#999' }} title="Sidebar collapsed">⋮</span>
-            </div>
-          )}
 
-          {/* Filter panel - hidden when collapsed */}
-          {!sidebarCollapsed && (
+          {sidebarCollapsed ? (
+            <div className="sidebar-collapsed-mark">Filters</div>
+          ) : (
             <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
           )}
         </aside>
 
-        <main className="main-content bg-body rounded shadow-sm flex-grow-1 overflow-auto p-4">
+        <main className="stage">
           {error && (
-            <div className={`${getErrorAlertClass()} alert-dismissible fade show mb-3`} role="alert">
-              <strong>{error.isRateLimit ? 'Rate Limit:' : 'Error:'}</strong> {getErrorMessage()}
-              <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+            <div className={getErrorAlertClass()} role="alert">
+              <div>
+                <strong>{error.isRateLimit ? 'Rate limit' : 'Error'}</strong>
+                <span>{getErrorMessage()}</span>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setError(null)} aria-label="Dismiss error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+                </svg>
+              </button>
             </div>
           )}
 
-          <div className="mb-4 d-flex gap-2 align-items-center flex-wrap">
-            <button 
-              className={`btn btn-sm ${runtime === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setRuntime('all')}
-            >
-              All Logs
-            </button>
-            <button 
-              className={`btn btn-sm ${runtime === 'backend' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setRuntime('backend')}
-            >
-              🖥️ Backend
-            </button>
-            <button 
-              className={`btn btn-sm ${runtime === 'frontend' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setRuntime('frontend')}
-            >
-              🌐 Frontend
-            </button>
-            <span className="text-muted small ms-auto me-2" style={{ fontSize: '0.78rem' }}>
-              ⭐ Star a log to protect it from auto-deletion
-            </span>
+          <div className="stream-toolbar">
+            <div className="segmented" role="group" aria-label="Runtime">
+              <button className={runtime === 'all' ? 'is-active' : ''} onClick={() => setRuntime('all')}>All</button>
+              <button className={runtime === 'backend' ? 'is-active' : ''} onClick={() => setRuntime('backend')}>Backend</button>
+              <button className={runtime === 'frontend' ? 'is-active' : ''} onClick={() => setRuntime('frontend')}>Frontend</button>
+            </div>
+            <p className="pin-hint">Pin a log to keep it through cleanup.</p>
             <button
-              className="btn btn-sm btn-outline-danger"
+              className="btn-danger"
               onClick={() => setShowClearModal(true)}
               title="Permanently delete all log entries"
             >
-              🗑️ Clear All Logs
+              Clear logs
             </button>
           </div>
 
-          {/* Clear All Logs confirmation modal */}
           {showClearModal && (
-            <>
-              <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="clearModalTitle">
-                <div className="modal-dialog modal-dialog-centered">
-                  <div className="modal-content border-danger">
-                    <div className="modal-header bg-danger text-white">
-                      <h5 className="modal-title" id="clearModalTitle">⚠️ Clear All Logs</h5>
-                      <button type="button" className="btn-close btn-close-white" onClick={() => setShowClearModal(false)} aria-label="Close" />
-                    </div>
-                    <div className="modal-body">
-                      <p className="mb-3">
-                        <strong>This will permanently delete all log entries.</strong> This action cannot be undone.
-                      </p>
-                      <div className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id="keepStarredCheck"
-                          checked={clearKeepStarred}
-                          onChange={(e) => setClearKeepStarred(e.target.checked)}
-                        />
-                        <label className="form-check-label" htmlFor="keepStarredCheck">
-                          ⭐ Keep pinned logs
-                        </label>
-                      </div>
-                    </div>
-                    <div className="modal-footer">
-                      <button type="button" className="btn btn-secondary" onClick={() => setShowClearModal(false)}>
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-danger"
-                        onClick={handleClearLogs}
-                        disabled={isClearing}
-                      >
-                        {isClearing ? (
-                          <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />Clearing…</>
-                        ) : '🗑️ Clear All Logs'}
-                      </button>
-                    </div>
-                  </div>
+            <div className="modal-layer">
+              <button className="modal-scrim" aria-label="Close dialog" onClick={() => setShowClearModal(false)} />
+              <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="clearModalTitle">
+                <p className="dialog-kicker">Destructive</p>
+                <h2 id="clearModalTitle">Clear all logs</h2>
+                <p>This permanently deletes log entries. You cannot undo it.</p>
+                <div className="keep-starred">
+                  <input
+                    type="checkbox"
+                    id="keepStarredCheck"
+                    checked={clearKeepStarred}
+                    onChange={(e) => setClearKeepStarred(e.target.checked)}
+                  />
+                  <label htmlFor="keepStarredCheck">Keep pinned logs</label>
+                </div>
+                <div className="dialog-actions">
+                  <button type="button" className="btn-ghost" onClick={() => setShowClearModal(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    onClick={handleClearLogs}
+                    disabled={isClearing}
+                  >
+                    {isClearing ? <><span className="spinner" role="status" aria-hidden="true" />Clearing…</> : 'Clear logs'}
+                  </button>
                 </div>
               </div>
-              <div className="modal-backdrop fade show" onClick={() => setShowClearModal(false)} />
-            </>
+            </div>
           )}
 
           <LogTable

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { SearchFilters, LogLevel } from "../types/api";
+import "./FilterPanel.css";
 
 interface FilterPanelProps {
   onSearch: (filters: SearchFilters) => void;
@@ -71,51 +72,44 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
 
   return (
     <div className="filter-panel">
-      <h2 className="mb-3">🔍 Search & Filter</h2>
+      <h2>Filters</h2>
+      <p className="panel-kicker">Narrow the stream</p>
       {isRealTime && (
-        <div className="alert alert-info alert-sm py-2 px-3 mb-3" role="alert">
-          <small>
-            <strong>Real-time mode:</strong> Live logs streaming — you can still set filters here and press
-            <em> Search </em> to apply them to both the historical results and the live stream.
-          </small>
-        </div>
+        <p className="filter-callout">
+          Live mode is on. Filters still apply to stored logs and the incoming stream.
+        </p>
       )}
 
-      <form onSubmit={handleSearch}>
-        <div className="mb-3 d-flex align-items-center justify-content-between gap-2">
-          <div style={{ flex: 1 }}>
-            <label htmlFor={subjectId} className="form-label small mb-2">
-              <strong>Subject</strong>
-            </label>
-            <input
-              id={subjectId}
-              type="text"
-              className="form-control form-control-sm"
-              placeholder="e.g., auth, database"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
+      <form className="filter-form" onSubmit={handleSearch}>
+        <div className="filter-field">
+          <div className="filter-label-row">
+            <label htmlFor={subjectId}>Subject</label>
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="autoApplyToggle"
+                checked={autoApply}
+                onChange={(e) => setAutoApply(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="autoApplyToggle">Auto-apply</label>
+            </div>
           </div>
-
-          <div className="form-check form-switch" style={{ alignSelf: 'end' }}>
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="autoApplyToggle"
-              checked={autoApply}
-              onChange={(e) => setAutoApply(e.target.checked)}
-            />
-            <label className="form-check-label small" htmlFor="autoApplyToggle">Auto-apply</label>
-          </div>
+          <input
+            id={subjectId}
+            type="text"
+            className="form-control"
+            placeholder="e.g., auth, database"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="filter-level" className="form-label small mb-2">
-            <strong>Log Level</strong>
-          </label>
+        <div className="filter-field">
+          <label htmlFor="filter-level">Log Level</label>
           <select
             id="filter-level"
-            className="form-select form-select-sm"
+            className="form-select"
             value={level}
             onChange={(e) => setLevel(e.target.value as LogLevel | "")}
           >
@@ -128,86 +122,69 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
           </select>
         </div>
 
-        <div className="mb-3">
-          <label htmlFor={textId} className="form-label small mb-2">
-            <strong>Search Text</strong>
-          </label>
+        <div className="filter-field">
+          <label htmlFor={textId}>Search Text</label>
           <input
             id={textId}
             type="text"
-            className="form-control form-control-sm"
+            className="form-control"
             placeholder="Search in content"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor={timeFromId} className="form-label small mb-2">
-            <strong>Time From</strong>
-          </label>
+        <div className="filter-field">
+          <label htmlFor={timeFromId}>Time From</label>
           <input
             id={timeFromId}
             type="datetime-local"
-            className="form-control form-control-sm"
+            className="form-control"
             value={timeFrom}
             onChange={(e) => setTimeFrom(e.target.value)}
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor={timeToId} className="form-label small mb-2">
-            <strong>Time To</strong>
-          </label>
+        <div className="filter-field">
+          <label htmlFor={timeToId}>Time To</label>
           <input
             id={timeToId}
             type="datetime-local"
-            className="form-control form-control-sm"
+            className="form-control"
             value={timeTo}
             onChange={(e) => setTimeTo(e.target.value)}
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor={requestIdId} className="form-label small mb-2">
-            <strong>Request ID</strong>
-          </label>
+        <div className="filter-field">
+          <label htmlFor={requestIdId}>Request ID</label>
           <input
             id={requestIdId}
             type="text"
-            className="form-control form-control-sm"
+            className="form-control"
             placeholder="Correlation ID"
             value={requestId}
             onChange={(e) => setRequestId(e.target.value)}
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor={sessionIdId} className="form-label small mb-2">
-            <strong>Session ID</strong>
-          </label>
+        <div className="filter-field">
+          <label htmlFor={sessionIdId}>Session ID</label>
           <input
             id={sessionIdId}
             type="text"
-            className="form-control form-control-sm"
+            className="form-control"
             placeholder="Session ID"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
           />
         </div>
 
-        <div className="d-grid gap-2">
-          <button 
-            type="submit" 
-            className="btn btn-primary btn-sm"
-          >
-            🔍 Search
+        <div className="filter-actions">
+          <button type="submit" className="btn-accent">
+            Search
           </button>
-          <button 
-            type="button" 
-            className="btn btn-outline-secondary btn-sm" 
-            onClick={handleClear}
-          >
+          <button type="button" className="btn-ghost" onClick={handleClear}>
             Clear
           </button>
         </div>

@@ -1,27 +1,109 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  --bg: #e5edf6;
+  --bg-glow-1: rgba(15, 110, 120, 0.18);
+  --bg-glow-2: rgba(91, 33, 182, 0.12);
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-solid: #ffffff;
+  --surface-2: #f3f7fb;
+  --ink: #141b2b;
+  --muted: #445468;
+  --faint: #6d7d92;
+  --line: rgba(20, 27, 43, 0.1);
+  --line-strong: rgba(20, 27, 43, 0.16);
+  --field: #ffffff;
+  --accent: #0f6e78;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(15, 110, 120, 0.12);
+  --danger: #be123c;
+  --danger-soft: rgba(190, 18, 60, 0.1);
+  --ok: #047857;
+  --ok-soft: rgba(4, 120, 87, 0.12);
+  --warn: #b45309;
+  --warn-soft: rgba(180, 83, 9, 0.12);
+  --shadow: 0 20px 50px rgba(20, 27, 43, 0.08);
+  --header: #0c1220;
+  --header-ink: #f5f7fb;
+  --header-muted: #9aa8bc;
+  --radius: 18px;
+  --sans: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --level-debug: #526277;
+  --level-info: #0e7490;
+  --level-success: #047857;
+  --level-warn: #c2410c;
+  --level-error: #e11d48;
+  --level-critical: #b91c1c;
+  --row-hover: rgba(15, 110, 120, 0.06);
+  --code-bg: #eef3f8;
+  --scrim: rgba(12, 18, 32, 0.48);
+  color-scheme: light;
+  font-family: var(--sans);
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-
+  color: var(--ink);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.app[data-bs-theme="dark"] {
+  --bg: #070b12;
+  --bg-glow-1: rgba(34, 211, 238, 0.09);
+  --bg-glow-2: rgba(167, 139, 250, 0.12);
+  --surface: rgba(16, 23, 36, 0.9);
+  --surface-solid: #101724;
+  --surface-2: #172131;
+  --ink: #e8eef7;
+  --muted: #a9b8cc;
+  --faint: #7f90a6;
+  --line: rgba(232, 238, 247, 0.08);
+  --line-strong: rgba(232, 238, 247, 0.16);
+  --field: #0c1420;
+  --accent: #22d3ee;
+  --accent-ink: #042028;
+  --accent-soft: rgba(34, 211, 238, 0.14);
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.14);
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.14);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.14);
+  --shadow: 0 22px 50px rgba(0, 0, 0, 0.38);
+  --level-debug: #a8b6c8;
+  --level-info: #67e8f9;
+  --level-success: #6ee7b7;
+  --level-warn: #fdba74;
+  --level-error: #fda4af;
+  --level-critical: #fecdd3;
+  --row-hover: rgba(34, 211, 238, 0.07);
+  --code-bg: #0c1420;
+  --scrim: rgba(0, 0, 0, 0.64);
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
-  padding: 0;
   min-width: 320px;
   height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 #root {
   height: 100%;
   width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--ink);
 }
