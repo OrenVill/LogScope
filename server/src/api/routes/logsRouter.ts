@@ -138,7 +138,7 @@ export const createLogsRouter = (
         defaultEnv: bucketConfig.defaultEnv,
         defaultService: bucketConfig.defaultService,
         envs: ["dev", "preprod", "prod"],
-        services: ["api", "worker"],
+        services: bucketConfig.services,
       },
     });
   });

@@ -27,7 +27,7 @@ export interface IQueryIndex {
     status?: string;
     /** archive bucket viewer: dev | preprod | prod */
     env?: string;
-    /** archive bucket viewer: api | worker */
+    /** Bucket service folder under the env prefix. */
     service?: string;
     limit?: number;
     offset?: number;
