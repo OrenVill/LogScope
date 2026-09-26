@@ -1,9 +1,15 @@
 import React, { useMemo, useState } from "react";
 import type { LogEntry, LogLevel, LogSummary } from "../types/log";
 import { logsApi } from "../api/logsService";
+import { editorLink, groupConsecutive, isTypingTarget } from "../lib/inspection";
 import "./LogTable.css";
 
 type Log = LogEntry | LogSummary;
+
+export interface TraceTarget {
+  kind: "request" | "session";
+  id: string;
+}
 
 interface LogTableProps {
   logs: Log[];
@@ -14,6 +20,14 @@ interface LogTableProps {
   onSort: (sortBy: "timestamp" | "level") => void;
   onLoadMore?: () => void;
   totalCount?: number;
+  focusEventId?: string | null;
+  focusNonce?: number;
+  followTick?: number;
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
+  onFollowChange?: (following: boolean) => void;
+  onExpandedChange?: (expanded: boolean) => void;
+  onOpenTrace?: (target: TraceTarget) => void;
+  onFocusSearch?: () => void;
 }
 
 /**
@@ -35,8 +49,17 @@ export const LogTable: React.FC<LogTableProps> = ({
   onSort,
   onLoadMore,
   totalCount = 0,
+  focusEventId = null,
+  focusNonce = 0,
+  followTick = 0,
+  scrollRootRef,
+  onFollowChange,
+  onExpandedChange,
+  onOpenTrace,
+  onFocusSearch,
 }) => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [fullLogs, setFullLogs] = useState<Map<string, LogEntry>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
@@ -114,6 +137,7 @@ export const LogTable: React.FC<LogTableProps> = ({
   };
 
   const toggleExpanded = async (log: Log) => {
+    setSelectedId(log.eventId);
     const wasExpanded = expandedRows.has(log.eventId);
     const newExpanded = new Set(expandedRows);
 
@@ -191,6 +215,8 @@ export const LogTable: React.FC<LogTableProps> = ({
     return sorted;
   }, [logs, sortBy, sortOrder]);
 
+  const groups = useMemo(() => groupConsecutive(sortedLogs), [sortedLogs]);
+
   const toggleSort = (column: "timestamp" | "level") => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "desc" ? "asc" : "desc");
@@ -207,6 +233,94 @@ export const LogTable: React.FC<LogTableProps> = ({
       day: date.toLocaleDateString([], { month: "short", day: "numeric" }),
     };
   };
+
+  const actionRef = React.useRef({ toggleExpanded, toggleStar });
+  actionRef.current = { toggleExpanded, toggleStar };
+  const expandedRef = React.useRef(expandedRows);
+  expandedRef.current = expandedRows;
+  const groupsRef = React.useRef(groups);
+  groupsRef.current = groups;
+  const selectedRef = React.useRef(selectedId);
+  selectedRef.current = selectedId;
+  const programmaticScroll = React.useRef(false);
+
+  React.useEffect(() => {
+    onExpandedChange?.(expandedRows.size > 0);
+  }, [expandedRows, onExpandedChange]);
+
+  const logsRef = React.useRef(logs);
+  logsRef.current = logs;
+
+  React.useEffect(() => {
+    if (!focusNonce || !focusEventId) return;
+    const log = logsRef.current.find((item) => item.eventId === focusEventId);
+    setSelectedId(focusEventId);
+    if (log && !expandedRef.current.has(focusEventId)) {
+      void actionRef.current.toggleExpanded(log);
+    }
+    const frame = requestAnimationFrame(() => {
+      document.querySelector(`[data-event-id="${focusEventId}"]`)?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusNonce, focusEventId]);
+
+  React.useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        onFocusSearch?.();
+        return;
+      }
+      const visible = groupsRef.current;
+      if (!visible.length) return;
+      const current = selectedRef.current;
+      const index = visible.findIndex((group) => group.log.eventId === current);
+      if (event.key === "j" || event.key === "k") {
+        event.preventDefault();
+        const nextIndex = event.key === "j"
+          ? Math.min(visible.length - 1, (index === -1 ? -1 : index) + 1)
+          : Math.max(0, index === -1 ? 0 : index - 1);
+        const id = visible[nextIndex].log.eventId;
+        setSelectedId(id);
+        document.querySelector(`[data-event-id="${id}"]`)?.scrollIntoView({ block: "nearest" });
+      } else if (event.key === "Enter" && current) {
+        event.preventDefault();
+        const group = visible.find((item) => item.log.eventId === current);
+        if (group) void actionRef.current.toggleExpanded(group.log);
+      } else if ((event.key === "s" || event.key === "S") && current && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        const group = visible.find((item) => item.log.eventId === current);
+        if (group) void actionRef.current.toggleStar({ stopPropagation() {} } as React.MouseEvent, group.log);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onFocusSearch]);
+
+  React.useEffect(() => {
+    const root = scrollRootRef?.current;
+    if (!root || !onFollowChange) return;
+    const onScroll = () => {
+      if (programmaticScroll.current) return;
+      const atBottom = root.scrollHeight - root.scrollTop - root.clientHeight < 48;
+      onFollowChange(atBottom);
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [scrollRootRef, onFollowChange]);
+
+  React.useEffect(() => {
+    const root = scrollRootRef?.current;
+    if (!root || !followTick) return;
+    programmaticScroll.current = true;
+    root.scrollTop = root.scrollHeight;
+    const timer = window.setTimeout(() => {
+      programmaticScroll.current = false;
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [followTick, scrollRootRef]);
 
   if (loading) {
     return (
@@ -271,14 +385,17 @@ export const LogTable: React.FC<LogTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {sortedLogs.map((log: Log) => {
+            {groups.map((group) => {
+              const log = group.log;
               const stamp = formatStamp(log.timestamp);
               const expanded = expandedRows.has(log.eventId);
               return (
               <React.Fragment key={log.eventId}>
                 <tr
+                  data-event-id={log.eventId}
                   title={`ID: ${log.eventId}`}
-                  className={`log-row-${log.level}`}
+                  className={`log-row-${log.level}${selectedId === log.eventId ? " is-selected" : ""}`}
+                  onClick={() => setSelectedId(log.eventId)}
                 >
                   <td>
                     <button
@@ -318,6 +435,9 @@ export const LogTable: React.FC<LogTableProps> = ({
                   </td>
                   <td>
                     <span className="subject-name">{log.subject}</span>
+                    {group.count > 1 && (
+                      <span className="repeat-count" title={`${group.count} identical events`}>×{group.count}</span>
+                    )}
                   </td>
                   <td>
                     <span className="message-preview" title={log.message || undefined}>
@@ -374,7 +494,15 @@ export const LogTable: React.FC<LogTableProps> = ({
                                       <h3>Source</h3>
                                       <div className="log-metadata">
                                         <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
-                                        <div><strong>File:</strong> <code>{displayLog.source.file}</code></div>
+                                        <div>
+                                          <strong>File:</strong>
+                                          <span className="file-value">
+                                            <code>{displayLog.source.file}</code>
+                                            {editorLink(displayLog.source.file) && (
+                                              <a className="editor-link" href={editorLink(displayLog.source.file) ?? undefined}>Open in editor</a>
+                                            )}
+                                          </span>
+                                        </div>
                                         <div><strong>Process:</strong> <code>{displayLog.source.process}</code></div>
                                         <div><strong>Runtime:</strong> <span>{displayLog.source.runtime === "node" ? "Node.js" : "Browser"}</span></div>
                                         <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
@@ -385,10 +513,20 @@ export const LogTable: React.FC<LogTableProps> = ({
                                       <h3>Correlation</h3>
                                       <div className="log-metadata">
                                         {displayLog.correlation.requestId && (
-                                          <div><strong>Request ID:</strong> <code>{displayLog.correlation.requestId}</code></div>
+                                          <div>
+                                            <strong>Request ID:</strong>
+                                            <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "request", id: displayLog.correlation.requestId! })}>
+                                              {displayLog.correlation.requestId}
+                                            </button>
+                                          </div>
                                         )}
                                         {displayLog.correlation.sessionId && (
-                                          <div><strong>Session ID:</strong> <code>{displayLog.correlation.sessionId}</code></div>
+                                          <div>
+                                            <strong>Session ID:</strong>
+                                            <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "session", id: displayLog.correlation.sessionId! })}>
+                                              {displayLog.correlation.sessionId}
+                                            </button>
+                                          </div>
                                         )}
                                         {displayLog.correlation.userId && (
                                           <div><strong>User ID:</strong> <code>{displayLog.correlation.userId}</code></div>

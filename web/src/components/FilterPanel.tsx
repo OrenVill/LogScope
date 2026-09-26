@@ -7,7 +7,7 @@ interface FilterPanelProps {
   isRealTime: boolean;
 }
 
-const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "success"];
+const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "critical", "success"];
 
 const AUTO_APPLY_DEBOUNCE_MS = 400;
 
