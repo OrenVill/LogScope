@@ -137,6 +137,88 @@ export function primitiveFields(data: unknown): { key: string; value: string }[]
     .map(([key, value]) => ({ key, value: String(value) }))
 }
 
+const HTTP_ROUTE = /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+?)(?:\s+-\s+|\s+)(\d{3})$/i
+
+/** `GET /status 200` from compacted hours, or `GET /status - 200` from raw lines. */
+export function parseHttpRoute(value: string | undefined | null): { method: string; path: string; status: number } | null {
+  if (!value) return null
+  const match = HTTP_ROUTE.exec(value.trim())
+  if (!match) return null
+  return { method: match[1].toUpperCase(), path: match[2], status: Number(match[3]) }
+}
+
+export interface PresentedSource {
+  origin: 'live' | 'archive'
+  env?: string
+  service: string
+  pod?: string
+  method?: string
+  path?: string
+  status?: number
+}
+
+function locationFromFile(file: string | undefined): { env?: string; service?: string; origin?: 'live' | 'archive' } {
+  if (!file) return {}
+  const landing = /^landing\/([^/]+)\/([^/]+)/.exec(file)
+  if (landing) return { env: landing[1], service: landing[2], origin: 'live' }
+  const archive = /^s3:\/\/([^/]+)\/([^/]+)/.exec(file)
+  if (archive) return { env: archive[1], service: archive[2], origin: 'archive' }
+  return {}
+}
+
+/**
+ * Bucket rows are stored with function archive and file s3://env/service.
+ * Raw lines use `METHOD /path - status` and belong to the open hour.
+ */
+export function presentedSource(log: {
+  subject?: string
+  message?: string
+  source?: {
+    function?: string
+    file?: string
+    process?: string
+    serviceName?: string
+    env?: string
+    pod?: string
+    method?: string
+    path?: string
+    status?: number
+    origin?: 'live' | 'archive'
+  }
+}): PresentedSource | null {
+  const source = log.source
+  if (!source) return null
+  const located = locationFromFile(source.file)
+  const bucketRow = Boolean(
+    source.origin ||
+    source.function === 'archive' ||
+    source.function === 'landing' ||
+    located.origin ||
+    source.method ||
+    source.path
+  )
+  if (!bucketRow) return null
+
+  const fromMessage = parseHttpRoute(log.message)
+  const fromSubject = parseHttpRoute(log.subject)
+  const route = fromMessage ?? fromSubject
+  const dashed = [log.message, log.subject].some((value) => Boolean(value && /\s-\s+\d{3}$/.test(value.trim())))
+  const pod = source.pod || (source.process && source.process !== 'unknown' ? source.process : undefined)
+  const origin =
+    source.origin ??
+    (dashed || source.function === 'landing' || located.origin === 'live' ? 'live' : 'archive')
+
+  return {
+    origin,
+    env: source.env ?? located.env,
+    service: source.serviceName || located.service || '',
+    ...(pod ? { pod } : {}),
+    method: source.method ?? route?.method,
+    path: source.path ?? route?.path,
+    status: source.status ?? route?.status,
+  }
+}
+
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   const tag = target.tagName

@@ -7,6 +7,7 @@ import {
   groupConsecutive,
   isTypingTarget,
   newestWithLevel,
+  presentedSource,
   primitiveFields,
   relativeTime,
   signatureCounts,
@@ -123,6 +124,39 @@ describe('primitiveFields', () => {
       { key: 'sku', value: 'lens-01' },
       { key: 'timeoutMs', value: '2500' },
     ])
+  })
+})
+
+describe('presentedSource', () => {
+  it('reads a raw status probe stored as an archive file', () => {
+    const view = presentedSource({
+      subject: 'GET /status - 200',
+      message: 'GET /status - 200',
+      source: {
+        function: 'archive',
+        file: 's3://dev/api',
+        process: 'unknown',
+        runtime: 'node',
+        serviceName: 'api',
+      },
+    })
+    expect(view).toMatchObject({
+      origin: 'live',
+      env: 'dev',
+      service: 'api',
+      method: 'GET',
+      path: '/status',
+      status: 200,
+    })
+    expect(view?.pod).toBeUndefined()
+  })
+
+  it('leaves local source rows alone', () => {
+    expect(presentedSource({
+      subject: 'checkout.pay',
+      message: 'Payment authorized',
+      source: { function: 'authorize', file: '/tmp/pay.ts', process: 'web', runtime: 'node', serviceName: 'payments' },
+    })).toBeNull()
   })
 })
 

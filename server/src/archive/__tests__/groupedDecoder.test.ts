@@ -92,4 +92,24 @@ describe("archiveMapper", () => {
     expect(entry?.correlation.requestId).toBe("req-live-probe");
     expect(entry?.source.file.startsWith("landing/")).toBe(true);
   });
+
+  it("reads a raw status probe line and the pod Vector attaches", () => {
+    const line = JSON.stringify({
+      timestamp: "2026-09-26T14:00:00.000Z",
+      level: "INFO",
+      message: "GET /status - 200",
+      data: { requestId: "req-probe", userAgent: "kube-probe/1.34" },
+      kubernetes: { pod_name: "api-7f" },
+    });
+    const entry = landingJsonLineToLogEntry(line, "dev", "api");
+    expect(entry?.message).toBe("GET /status - 200");
+    expect(entry?.source.origin).toBe("live");
+    expect(entry?.source.env).toBe("dev");
+    expect(entry?.source.method).toBe("GET");
+    expect(entry?.source.path).toBe("/status");
+    expect(entry?.source.status).toBe(200);
+    expect(entry?.source.pod).toBe("api-7f");
+    expect(entry?.source.process).toBe("api-7f");
+    expect(entry?.correlation.requestId).toBe("req-probe");
+  });
 });
