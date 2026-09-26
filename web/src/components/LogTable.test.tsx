@@ -97,6 +97,39 @@ describe('LogTable (lazy details)', () => {
     expect(screen.queryByText('unknown')).not.toBeInTheDocument()
   })
 
+  it('groups repeated status lines that are not next to each other', () => {
+    const probe = (eventId: string, seconds: number): LogSummary => ({
+      eventId,
+      timestamp: new Date(Date.now() - seconds * 1000).toISOString(),
+      level: 'info',
+      subject: 'API',
+      message: 'GET /status - 200',
+      source: { runtime: 'node', serviceName: 'api' },
+    })
+    const other: LogSummary = {
+      eventId: 'other',
+      timestamp: new Date(Date.now() - 8000).toISOString(),
+      level: 'info',
+      subject: 'checkout.start',
+      message: 'Checkout started',
+      source: { runtime: 'node', serviceName: 'api' },
+    }
+
+    render(
+      <LogTable
+        logs={[probe('p1', 0), other, probe('p2', 5), probe('p3', 15)]}
+        loading={false}
+        sortBy="timestamp"
+        onSort={() => {}}
+      />
+    )
+
+    expect(screen.getAllByText('GET /status - 200')).toHaveLength(1)
+    expect(screen.getByText('×3')).toBeInTheDocument()
+    expect(screen.getByText('Checkout started')).toBeInTheDocument()
+    expect(screen.getAllByText('▶')).toHaveLength(2)
+  })
+
   it('renders a real bucket status probe without the archive placeholders', () => {
     const probe: LogEntry = {
       eventId: 's3-probe',

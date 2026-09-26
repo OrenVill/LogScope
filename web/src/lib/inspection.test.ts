@@ -5,6 +5,7 @@ import {
   flushPending,
   formatDuration,
   groupConsecutive,
+  groupInView,
   isTypingTarget,
   newestWithLevel,
   presentedSource,
@@ -30,6 +31,26 @@ describe('groupConsecutive', () => {
     expect(groups[0].log.eventId).toBe('a')
     expect(groups[1].count).toBe(1)
     expect(groups[2].log.eventId).toBe('d')
+  })
+})
+
+describe('groupInView', () => {
+  it('collapses the same status line even when other logs sit between copies', () => {
+    const logs = [
+      { eventId: 'a', level: 'info', subject: 'API', message: 'GET /status - 200' },
+      { eventId: 'b', level: 'info', subject: 'checkout', message: 'Checkout started' },
+      { eventId: 'c', level: 'info', subject: 'API', message: 'GET /status - 200' },
+      { eventId: 'd', level: 'info', subject: 'API', message: 'GET /status  -  200' },
+      { eventId: 'e', level: 'warn', subject: 'API', message: 'GET /status - 200' },
+    ]
+
+    const groups = groupInView(logs)
+
+    expect(groups).toHaveLength(3)
+    expect(groups[0].log.eventId).toBe('a')
+    expect(groups[0]).toMatchObject({ count: 3, eventIds: ['a', 'c', 'd'] })
+    expect(groups[1].log.eventId).toBe('b')
+    expect(groups[2].log.eventId).toBe('e')
   })
 })
 

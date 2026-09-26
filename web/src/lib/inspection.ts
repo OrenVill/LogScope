@@ -11,20 +11,42 @@ export interface LogGroup<T extends GroupableLog> {
   eventIds: string[]
 }
 
+function normalizeField(value: string): string {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+export function logSignature(log: GroupableLog): string {
+  return `${normalizeField(log.level)}\0${normalizeField(log.subject)}\0${normalizeField(log.message)}`
+}
+
 export function groupConsecutive<T extends GroupableLog>(logs: T[]): LogGroup<T>[] {
   const groups: LogGroup<T>[] = []
   for (const log of logs) {
     const previous = groups[groups.length - 1]
-    const same =
-      previous &&
-      previous.log.level === log.level &&
-      previous.log.subject === log.subject &&
-      previous.log.message === log.message
-    if (previous && same) {
+    if (previous && logSignature(previous.log) === logSignature(log)) {
       previous.count += 1
       previous.eventIds.push(log.eventId)
     } else {
       groups.push({ log, count: 1, eventIds: [log.eventId] })
+    }
+  }
+  return groups
+}
+
+/** Collapse every copy of a signature in the loaded list. The first row stays put. */
+export function groupInView<T extends GroupableLog>(logs: T[]): LogGroup<T>[] {
+  const groups: LogGroup<T>[] = []
+  const indexBySignature = new Map<string, number>()
+  for (const log of logs) {
+    const key = logSignature(log)
+    const existing = indexBySignature.get(key)
+    if (existing === undefined) {
+      indexBySignature.set(key, groups.length)
+      groups.push({ log, count: 1, eventIds: [log.eventId] })
+    } else {
+      const group = groups[existing]
+      group.count += 1
+      group.eventIds.push(log.eventId)
     }
   }
   return groups
@@ -73,10 +95,6 @@ export function newestWithLevel<T extends { level: string; timestamp: string }>(
   return logs
     .filter((log) => log.level === level)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-}
-
-export function logSignature(log: GroupableLog): string {
-  return `${log.level}\0${log.subject}\0${log.message}`
 }
 
 export function signatureCounts<T extends GroupableLog>(logs: T[]): Map<string, number> {

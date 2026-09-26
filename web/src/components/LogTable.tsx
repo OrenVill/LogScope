@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import type { LogEntry, LogLevel, LogSummary } from "../types/log";
 import { logsApi } from "../api/logsService";
-import { editorLink, groupConsecutive, isTypingTarget, logSignature, presentedSource, primitiveFields, relativeTime, signatureCounts } from "../lib/inspection";
+import { editorLink, groupInView, isTypingTarget, presentedSource, primitiveFields, relativeTime } from "../lib/inspection";
 import type { SearchFilters } from "../types/api";
 import "./LogTable.css";
 
@@ -221,8 +221,7 @@ export const LogTable: React.FC<LogTableProps> = ({
     return sorted;
   }, [logs, sortBy, sortOrder]);
 
-  const groups = useMemo(() => groupConsecutive(sortedLogs), [sortedLogs]);
-  const matchCounts = useMemo(() => signatureCounts(sortedLogs), [sortedLogs]);
+  const groups = useMemo(() => groupInView(sortedLogs), [sortedLogs]);
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 15000);
@@ -468,12 +467,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                       {log.subject}
                     </button>
                     {group.count > 1 && (
-                      <span className="repeat-count" title={`${group.count} identical events in a row`}>×{group.count}</span>
-                    )}
-                    {(matchCounts.get(logSignature(log)) ?? 1) > group.count && (
-                      <span className="in-view-count" title="Matching events in this view, including ones that are not adjacent">
-                        {matchCounts.get(logSignature(log))} in view
-                      </span>
+                      <span className="repeat-count" title={`${group.count} identical events in this view`}>×{group.count}</span>
                     )}
                   </td>
                   <td>
