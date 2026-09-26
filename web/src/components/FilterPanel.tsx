@@ -1,9 +1,12 @@
 import React, { useState } from "react";
-import type { SearchFilters, LogLevel } from "../types/api";
+import type { SearchFilters, LogLevel, NexvillEnv, NexvillService } from "../types/api";
 
 interface FilterPanelProps {
   onSearch: (filters: SearchFilters) => void;
   isRealTime: boolean;
+  showArchiveFilters?: boolean;
+  defaultEnv?: NexvillEnv;
+  defaultService?: NexvillService;
 }
 
 const logLevels: LogLevel[] = ["debug", "info", "warn", "error", "success"];
@@ -13,7 +16,16 @@ const AUTO_APPLY_DEBOUNCE_MS = 400;
 /**
  * FilterPanel component - search and filter controls
  */
-export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }) => {
+const ENV_OPTIONS: NexvillEnv[] = ["dev", "preprod", "prod"];
+const SERVICE_OPTIONS: NexvillService[] = ["nexvill-api", "nexvill-worker"];
+
+export const FilterPanel: React.FC<FilterPanelProps> = ({
+  onSearch,
+  isRealTime,
+  showArchiveFilters = false,
+  defaultEnv = "prod",
+  defaultService = "nexvill-api",
+}) => {
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
   const [level, setLevel] = useState<LogLevel | "">("");
@@ -21,7 +33,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
   const [timeTo, setTimeTo] = useState("");
   const [requestId, setRequestId] = useState("");
   const [sessionId, setSessionId] = useState("");
+  const [env, setEnv] = useState<NexvillEnv>(defaultEnv);
+  const [service, setService] = useState<NexvillService>(defaultService);
   const [autoApply, setAutoApply] = useState(true);
+
+  React.useEffect(() => {
+    setEnv(defaultEnv);
+    setService(defaultService);
+  }, [defaultEnv, defaultService]);
 
   // element ids for accessibility
   const subjectId = "filter-subject";
@@ -41,8 +60,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
     if (timeTo) filters.timeTo = timeTo;
     if (requestId) filters.requestId = requestId;
     if (sessionId) filters.sessionId = sessionId;
+    if (showArchiveFilters) {
+      filters.env = env;
+      filters.service = service;
+    }
     return filters;
-  }, [subject, text, level, timeFrom, timeTo, requestId, sessionId]);
+  }, [subject, text, level, timeFrom, timeTo, requestId, sessionId, showArchiveFilters, env, service]);
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(buildFilters());
@@ -56,7 +79,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
     setTimeTo("");
     setRequestId("");
     setSessionId("");
-    onSearch({});
+    if (showArchiveFilters) {
+      setEnv(defaultEnv);
+      setService(defaultService);
+    }
+    onSearch(showArchiveFilters ? { env: defaultEnv, service: defaultService } : {});
   };
 
   // Debounced auto-apply effect: watches filter inputs and calls onSearch when autoApply is enabled
@@ -82,6 +109,45 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onSearch, isRealTime }
       )}
 
       <form onSubmit={handleSearch}>
+        {showArchiveFilters && (
+          <>
+            <div className="mb-3">
+              <label htmlFor="filter-env" className="form-label small mb-2">
+                <strong>Environment</strong>
+              </label>
+              <select
+                id="filter-env"
+                className="form-select form-select-sm"
+                value={env}
+                onChange={(e) => setEnv(e.target.value as NexvillEnv)}
+              >
+                {ENV_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-3">
+              <label htmlFor="filter-service" className="form-label small mb-2">
+                <strong>Service</strong>
+              </label>
+              <select
+                id="filter-service"
+                className="form-select form-select-sm"
+                value={service}
+                onChange={(e) => setService(e.target.value as NexvillService)}
+              >
+                {SERVICE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
         <div className="mb-3 d-flex align-items-center justify-content-between gap-2">
           <div style={{ flex: 1 }}>
             <label htmlFor={subjectId} className="form-label small mb-2">

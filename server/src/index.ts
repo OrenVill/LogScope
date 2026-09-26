@@ -15,6 +15,8 @@ import { createLogsRouter } from "./api/routes/logsRouter.js";
 import { WsLogServer } from "./ws/wsServer.js";
 import { loadNexvillBucketConfig, isBucketReadMode } from "./nexvill/bucketConfig.js";
 import { createBucketQueryIndex } from "./nexvill/bucketQueryIndex.js";
+import { createS3Client } from "./nexvill/s3LogReader.js";
+import { S3LandingTailPoller } from "./nexvill/s3LandingTail.js";
 
 // Load environment variables
 // Prefer a `.env` in the server folder; if not present, fall back to repository root `.env`.
@@ -110,12 +112,24 @@ app.get("/health", (req, res) => {
     wsLogServer = new WsLogServer(httpServer, configuredKey);
     console.log("WebSocket server initialized on /ws");
 
+    let archiveTailPoller: S3LandingTailPoller | undefined;
+    if (readOnlyArchive) {
+      archiveTailPoller = new S3LandingTailPoller(
+        bucketConfig,
+        createS3Client(bucketConfig),
+        wsLogServer
+      );
+      archiveTailPoller.start();
+      console.log("[Archive] S3 landing tail poller started (current UTC hour)");
+    }
+
     // Mount API key auth + routes
     app.use(
       "/api/logs",
       apiKeyAuth,
       createLogsRouter(fileStorage, queryIndex, wsLogServer, starredStorage, {
         readOnlyArchive,
+        bucketConfig: readOnlyArchive ? bucketConfig : undefined,
       })
     );
 

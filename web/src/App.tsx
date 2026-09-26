@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import { FilterPanel } from './components/FilterPanel'
 import { LogTable } from './components/LogTable'
+import { StatsPanel } from './components/StatsPanel'
 import { logsApi } from './api/logsService'
-import type { LogEntry, LogLevel, SearchFilters } from './types/api'
+import type { LogEntry, LogLevel, SearchFilters, ArchiveConfig } from './types/api'
 
 interface ErrorState {
   message: string
@@ -25,7 +26,9 @@ function App() {
   })
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
-  const [levelFilter] = useState<LogLevel | 'all'>('all')
+  const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
+  const [archiveConfig, setArchiveConfig] = useState<ArchiveConfig | null>(null)
+  const [archiveDailyStats, setArchiveDailyStats] = useState<{ info: number; warn: number; error: number } | null>(null)
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const [offset, setOffset] = useState(0)
@@ -180,11 +183,43 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    void (async () => {
+      const cfg = await logsApi.getArchiveConfig()
+      if (cfg.success && cfg.data) {
+        setArchiveConfig(cfg.data)
+      }
+    })()
+  }, [])
+
+  const refreshDailyStats = useCallback(async (filters?: SearchFilters) => {
+    if (!archiveConfig?.readOnly) {
+      setArchiveDailyStats(null)
+      return
+    }
+    const res = await logsApi.getDailyStats(filters || {})
+    if (res.success && res.data) {
+      setArchiveDailyStats({
+        info: res.data.info,
+        warn: res.data.warn,
+        error: res.data.error,
+      })
+    } else {
+      setArchiveDailyStats(null)
+    }
+  }, [archiveConfig?.readOnly])
+
   // Load initial page on mount
   useEffect(() => {
     loadLogs(undefined, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (archiveConfig?.readOnly) {
+      void refreshDailyStats(currentFilters)
+    }
+  }, [archiveConfig?.readOnly, currentFilters, refreshDailyStats])
 
   // Auto-connect WebSocket if real-time mode is enabled
   useEffect(() => {
@@ -219,7 +254,7 @@ function App() {
   })
 
   // Connect to WebSocket (stable identity to avoid re-creating handlers)
-  const connectWebSocket = useCallback((filters?: { level?: string; subject?: string }) => {
+  const connectWebSocket = useCallback((filters?: SearchFilters) => {
     // If a socket is already open or connecting, don't recreate it (avoids StrictMode double-invoke noise)
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return
@@ -258,6 +293,13 @@ function App() {
         })
       },
       filters
+        ? {
+            level: filters.level,
+            subject: filters.subject,
+            env: filters.env,
+            service: filters.service,
+          }
+        : undefined
     )
 
     // Clear the ignore flag once the socket opens or after a short timeout
@@ -297,12 +339,23 @@ function App() {
   // Memoized handler passed to FilterPanel to prevent auto-apply from retriggering
   const handleSearch = useCallback((f?: SearchFilters) => {
     loadLogs(f, true);
+    void refreshDailyStats(f);
 
     if (!isRealTime) return;
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
-        wsRef.current.send(JSON.stringify({ type: 'subscribe', filters: f }));
+        wsRef.current.send(JSON.stringify({
+          type: 'subscribe',
+          filters: f
+            ? {
+                level: f.level,
+                subject: f.subject,
+                env: f.env,
+                service: f.service,
+              }
+            : undefined,
+        }));
         return;
       } catch {
         // fallback to reconnect if send fails
@@ -314,7 +367,7 @@ function App() {
 
     // if no socket exists, create one with filters
     connectWebSocket(f);
-  }, [isRealTime, loadLogs, connectWebSocket, disconnectWebSocket]);
+  }, [isRealTime, loadLogs, connectWebSocket, disconnectWebSocket, refreshDailyStats]);
 
   // Toggle real-time mode
   const toggleRealTime = (enabled: boolean) => {
@@ -497,7 +550,13 @@ function App() {
 
           {/* Filter panel - hidden when collapsed */}
           {!sidebarCollapsed && (
-            <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
+            <FilterPanel
+              onSearch={handleSearch}
+              isRealTime={isRealTime}
+              showArchiveFilters={archiveConfig?.readOnly === true}
+              defaultEnv={archiveConfig?.defaultEnv}
+              defaultService={archiveConfig?.defaultService}
+            />
           )}
         </aside>
 
@@ -588,6 +647,13 @@ function App() {
               <div className="modal-backdrop fade show" onClick={() => setShowClearModal(false)} />
             </>
           )}
+
+          <StatsPanel
+            logs={filteredLogs}
+            onLevelFilter={setLevelFilter}
+            currentLevel={levelFilter}
+            archiveDailyStats={archiveDailyStats}
+          />
 
           <LogTable
             logs={filteredLogs}

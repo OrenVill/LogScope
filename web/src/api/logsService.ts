@@ -1,4 +1,11 @@
-import type { LogEntry, ApiResponse, SearchFilters, Pagination } from "../types/api";
+import type {
+  LogEntry,
+  ApiResponse,
+  SearchFilters,
+  Pagination,
+  ArchiveDailyStats,
+  ArchiveConfig,
+} from "../types/api";
 
 /**
  * Retry configuration for failed requests
@@ -130,6 +137,8 @@ export class LogsApiClient {
     if (filters.text) params.append("text", filters.text);
     if (filters.requestId) params.append("requestId", filters.requestId);
     if (filters.sessionId) params.append("sessionId", filters.sessionId);
+    if (filters.env) params.append("env", filters.env);
+    if (filters.service) params.append("service", filters.service);
     if (pagination?.limit) params.append("limit", pagination.limit.toString());
     if (pagination?.offset) params.append("offset", pagination.offset.toString());
     params.append("lightweight", lightweight.toString());
@@ -147,6 +156,53 @@ export class LogsApiClient {
         };
       }
       
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+        errorCode: "NETWORK_ERROR",
+      };
+    }
+  }
+
+  async getArchiveConfig(): Promise<ApiResponse<ArchiveConfig>> {
+    try {
+      const response = await fetchWithRetry(`${this.baseUrl}/api/logs/archive-config`);
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Failed to load archive config",
+          errorCode: data.errorCode || "HTTP_ERROR",
+        };
+      }
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+        errorCode: "NETWORK_ERROR",
+      };
+    }
+  }
+
+  async getDailyStats(filters: SearchFilters): Promise<ApiResponse<ArchiveDailyStats>> {
+    const params = new URLSearchParams();
+    if (filters.timeFrom) params.append("timeFrom", filters.timeFrom);
+    if (filters.timeTo) params.append("timeTo", filters.timeTo);
+    if (filters.env) params.append("env", filters.env);
+    if (filters.service) params.append("service", filters.service);
+    try {
+      const response = await fetchWithRetry(`${this.baseUrl}/api/logs/stats/daily?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Failed to load daily stats",
+          errorCode: data.errorCode || "HTTP_ERROR",
+        };
+      }
       return data;
     } catch (error) {
       return {
@@ -287,7 +343,7 @@ export class LogsApiClient {
   connectWebSocket(
     onMessage: (log: LogEntry) => void,
     onError?: (error: Error) => void,
-    filters?: { level?: string; subject?: string }
+    filters?: { level?: string; subject?: string; env?: string; service?: string }
   ): WebSocket | null {
     const maxReconnectAttempts = 5;
 

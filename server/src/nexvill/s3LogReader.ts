@@ -1,15 +1,16 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { decompress } from "@mongodb-js/zstd";
 import type { NexvillBucketConfig } from "./bucketConfig.js";
 import { decodeGroupedLines } from "./groupedDecoder.js";
 import type { DecodedEvent } from "./groupedTypes.js";
-import { landingJsonLineToLogEntry } from "./nexvillMapper.js";
 import type { LogEntry } from "../types/index.js";
 import { decodedEventToLogEntry } from "./nexvillMapper.js";
+import { readLandingEntriesForSlot, shouldReadLandingForHour } from "./landingHour.js";
+import { decodeZstdToUtf8 } from "./zstdDecode.js";
 
 export type HourSlot = { datePart: string; hourPart: string };
 
@@ -39,7 +40,19 @@ async function streamToBuffer(body: unknown): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-async function getObjectBytes(client: S3Client, bucket: string, key: string): Promise<Buffer | null> {
+export async function objectExists(client: S3Client, bucket: string, key: string): Promise<boolean> {
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return true;
+  } catch (err: unknown) {
+    const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    const name = err && typeof err === "object" && "name" in err ? String((err as { name: string }).name) : "";
+    if (status === 404 || name === "NotFound" || name === "NoSuchKey") return false;
+    throw err;
+  }
+}
+
+export async function getObjectBytes(client: S3Client, bucket: string, key: string): Promise<Buffer | null> {
   try {
     const out = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     return streamToBuffer(out.Body);
@@ -51,8 +64,7 @@ async function getObjectBytes(client: S3Client, bucket: string, key: string): Pr
 }
 
 async function decodeZstdNdjson(bytes: Buffer): Promise<string> {
-  const decompressed = await decompress(bytes);
-  return Buffer.from(decompressed).toString("utf8");
+  return decodeZstdToUtf8(bytes);
 }
 
 /** UTC hour buckets from timeFrom (inclusive) through timeTo (inclusive). */
@@ -86,7 +98,7 @@ function tierForLevelFilter(level: string | undefined): { info: boolean; durable
   return { info: true, durable: true };
 }
 
-async function listLandingKeys(
+export async function listLandingKeys(
   client: S3Client,
   bucket: string,
   env: string,
@@ -123,47 +135,48 @@ export async function fetchLogsFromBucket(options: {
   const entries: LogEntry[] = [];
 
   for (const slot of slots) {
-    const compactKeys: { prefix: "info" | "durable"; key: string }[] = [];
-    if (tiers.info) {
-      compactKeys.push({
-        prefix: "info",
-        key: `info/${env}/${service}/date=${slot.datePart}/hour=${slot.hourPart}.ndjson.zst`,
-      });
-    }
-    if (tiers.durable) {
-      compactKeys.push({
-        prefix: "durable",
-        key: `durable/${env}/${service}/date=${slot.datePart}/hour=${slot.hourPart}.ndjson.zst`,
-      });
-    }
+    const infoKey = `info/${env}/${service}/date=${slot.datePart}/hour=${slot.hourPart}.ndjson.zst`;
+    const durableKey = `durable/${env}/${service}/date=${slot.datePart}/hour=${slot.hourPart}.ndjson.zst`;
+    const hasInfoObject = await objectExists(client, config.bucket, infoKey);
+    const hasDurableObject = await objectExists(client, config.bucket, durableKey);
 
-    for (const { key } of compactKeys) {
-      const bytes = await getObjectBytes(client, config.bucket, key);
-      if (!bytes || bytes.length === 0) continue;
-      const text = await decodeZstdNdjson(bytes);
-      const decoded: DecodedEvent[] = decodeGroupedLines(text.split("\n"));
-      for (const event of decoded) {
-        entries.push(decodedEventToLogEntry(event, env, service));
+    if (tiers.info && hasInfoObject) {
+      const bytes = await getObjectBytes(client, config.bucket, infoKey);
+      if (bytes && bytes.length > 0) {
+        const text = await decodeZstdNdjson(bytes);
+        const decoded: DecodedEvent[] = decodeGroupedLines(text.split("\n"));
+        for (const event of decoded) {
+          entries.push(decodedEventToLogEntry(event, env, service));
+        }
       }
     }
 
-    if (config.includeLanding) {
-      const landingKeys = await listLandingKeys(client, config.bucket, env, service, slot);
-      for (const key of landingKeys) {
-        const bytes = await getObjectBytes(client, config.bucket, key);
-        if (!bytes || bytes.length === 0) continue;
-        let text: string;
-        if (key.endsWith(".zst")) {
-          text = await decodeZstdNdjson(bytes);
-        } else {
-          text = bytes.toString("utf8");
-        }
-        for (const line of text.split("\n")) {
-          if (!line.trim()) continue;
-          const entry = landingJsonLineToLogEntry(line, env, service);
-          if (entry) entries.push(entry);
+    if (tiers.durable && hasDurableObject) {
+      const bytes = await getObjectBytes(client, config.bucket, durableKey);
+      if (bytes && bytes.length > 0) {
+        const text = await decodeZstdNdjson(bytes);
+        const decoded: DecodedEvent[] = decodeGroupedLines(text.split("\n"));
+        for (const event of decoded) {
+          entries.push(decodedEventToLogEntry(event, env, service));
         }
       }
+    }
+
+    if (
+      shouldReadLandingForHour({
+        includeLanding: config.includeLanding,
+        hasInfoObject,
+        hasDurableObject,
+      })
+    ) {
+      const landingEntries = await readLandingEntriesForSlot({
+        client,
+        bucket: config.bucket,
+        env,
+        service,
+        slot,
+      });
+      entries.push(...landingEntries);
     }
   }
 

@@ -13,6 +13,8 @@ export interface WsMessage {
   filters?: {
     level?: string;
     subject?: string;
+    env?: string;
+    service?: string;
   };
 }
 
@@ -25,6 +27,8 @@ interface WsClient {
   filters?: {
     level?: string;
     subject?: string;
+    env?: string;
+    service?: string;
   };
 }
 
@@ -80,6 +84,8 @@ export class WsLogServer {
               client.filters = {
                 level: message.filters.level,
                 subject: message.filters.subject,
+                env: message.filters.env,
+                service: message.filters.service,
               };
             }
             console.log(`[WS] Client ${clientId} subscribed with filters:`, client.filters);
@@ -164,6 +170,20 @@ export class WsLogServer {
    */
   public getClientCount(): number {
     return this.clients.size;
+  }
+
+  /** Distinct env/service pairs requested by connected clients (for S3 landing tail). */
+  public getActiveArchiveScopes(
+    defaultEnv: string,
+    defaultService: string
+  ): { env: string; service: string }[] {
+    const scopes = new Map<string, { env: string; service: string }>();
+    this.clients.forEach((client) => {
+      const env = client.filters?.env?.trim() || defaultEnv;
+      const service = client.filters?.service?.trim() || defaultService;
+      scopes.set(`${env}|${service}`, { env, service });
+    });
+    return [...scopes.values()];
   }
 
   /**

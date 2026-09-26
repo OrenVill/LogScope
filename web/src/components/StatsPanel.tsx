@@ -6,6 +6,8 @@ interface StatsPanelProps {
   logs: LogEntry[]
   onLevelFilter: (level: LogLevel | 'all') => void
   currentLevel: LogLevel | 'all'
+  /** When set (S3 archive mode), info/warn/error totals come from `stats/daily/` objects. */
+  archiveDailyStats?: { info: number; warn: number; error: number } | null
 }
 
 const levelIcons: Record<LogLevel | 'all', string> = {
@@ -28,9 +30,14 @@ const levelColors: Record<LogLevel | 'all', { bg: string; text: string; badge: s
   all: { bg: 'rgba(33, 37, 41, 0.05)', text: '#212529', badge: 'secondary' }
 }
 
-export const StatsPanel: React.FC<StatsPanelProps> = ({ logs, onLevelFilter, currentLevel }) => {
+export const StatsPanel: React.FC<StatsPanelProps> = ({
+  logs,
+  onLevelFilter,
+  currentLevel,
+  archiveDailyStats = null,
+}) => {
   const [isExpanded, setIsExpanded] = useState(true)
-  const stats = {
+  const fromLogs = {
     debug: logs.filter(l => l.level === 'debug').length,
     info: logs.filter(l => l.level === 'info').length,
     success: logs.filter(l => l.level === 'success').length,
@@ -38,6 +45,14 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ logs, onLevelFilter, cur
     error: logs.filter(l => l.level === 'error').length,
     critical: logs.filter(l => l.level === 'critical').length,
   }
+  const stats = archiveDailyStats
+    ? {
+        ...fromLogs,
+        info: archiveDailyStats.info,
+        warn: archiveDailyStats.warn,
+        error: archiveDailyStats.error,
+      }
+    : fromLogs
 
   const total = Object.values(stats).reduce((a, b) => a + b, 0)
   const hasErrors = stats.error > 0 || stats.critical > 0
@@ -52,6 +67,11 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ logs, onLevelFilter, cur
         >
           <span className="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
           <h2 className="stats-title">📊 Log Statistics</h2>
+          {archiveDailyStats && (
+            <span className="text-muted small ms-2" title="Counts from NexVill stats/daily objects for the selected date range">
+              (bucket daily)
+            </span>
+          )}
         </button>
         <div className="stats-total">
           <span className="stats-label">Total:</span>

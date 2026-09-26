@@ -7,10 +7,15 @@ import { IStarredStorage } from "../../storage/starredStorage.js";
 import { WsLogServer } from "../../ws/wsServer.js";
 import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation.js";
 import { BucketQueryValidationError } from "../../nexvill/bucketQueryIndex.js";
+import type { NexvillBucketConfig } from "../../nexvill/bucketConfig.js";
+import { createS3Client } from "../../nexvill/s3LogReader.js";
+import { fetchAggregatedDailyStats } from "../../nexvill/s3DailyStats.js";
+import { isNexvillEnv, isNexvillService } from "../../nexvill/nexvillMapper.js";
 
 export interface LogsRouterOptions {
   /** S3 bucket read-only mode: disable ingest and mutations */
   readOnlyArchive?: boolean;
+  bucketConfig?: NexvillBucketConfig;
 }
 
 export const createLogsRouter = (
@@ -22,6 +27,9 @@ export const createLogsRouter = (
 ) => {
   const router = Router();
   const readOnly = options?.readOnlyArchive === true;
+  const bucketConfig = options?.bucketConfig;
+  const bucketClient =
+    readOnly && bucketConfig ? createS3Client(bucketConfig) : undefined;
 
   const readOnlyResponse = (res: Response) =>
     res.status(503).json({
@@ -112,6 +120,86 @@ export const createLogsRouter = (
    *   - offset: number of results to skip (default: 0)
    *   - lightweight: return summaries only (true/false, default: true)
    */
+  /**
+   * GET /api/logs/archive-config
+   * S3 viewer defaults and allowed env/service values.
+   */
+  router.get("/archive-config", (_req: Request, res: Response) => {
+    if (!readOnly || !bucketConfig) {
+      return res.json({
+        success: true,
+        data: { readOnly: false },
+      });
+    }
+    res.json({
+      success: true,
+      data: {
+        readOnly: true,
+        bucket: bucketConfig.bucket,
+        region: bucketConfig.region,
+        defaultEnv: bucketConfig.defaultEnv,
+        defaultService: bucketConfig.defaultService,
+        envs: ["dev", "preprod", "prod"],
+        services: ["nexvill-api", "nexvill-worker"],
+      },
+    });
+  });
+
+  /**
+   * GET /api/logs/stats/daily
+   * Aggregate NexVill daily stats objects for the query window.
+   */
+  router.get("/stats/daily", async (req: Request, res: Response) => {
+    if (!readOnly || !bucketConfig || !bucketClient) {
+      return res.status(404).json({
+        success: false,
+        error: "Daily bucket stats are only available in S3 archive mode",
+        errorCode: "NOT_FOUND",
+      });
+    }
+    try {
+      const { timeFrom, timeTo, env, service, svc } = req.query;
+      if (env && !isNexvillEnv(String(env))) {
+        throw new BucketQueryValidationError(`Invalid env "${env}"`);
+      }
+      if (service && !isNexvillService(String(service))) {
+        throw new BucketQueryValidationError(`Invalid service "${service}"`);
+      }
+      const serviceParam = (service as string | undefined) || (svc as string | undefined);
+      const resolvedEnv =
+        env && isNexvillEnv(String(env)) ? String(env) : bucketConfig.defaultEnv;
+      const resolvedService =
+        serviceParam && isNexvillService(serviceParam)
+          ? serviceParam
+          : bucketConfig.defaultService;
+
+      const now = Date.now();
+      const defaultFrom = now - 24 * 60 * 60 * 1000;
+      const timeFromMs = timeFrom ? new Date(String(timeFrom)).getTime() : defaultFrom;
+      const timeToMs = timeTo ? new Date(String(timeTo)).getTime() : now;
+
+      const stats = await fetchAggregatedDailyStats({
+        config: bucketConfig,
+        client: bucketClient,
+        env: resolvedEnv,
+        service: resolvedService,
+        timeFromMs,
+        timeToMs,
+      });
+
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      console.error("Error fetching daily stats:", error);
+      const message = error instanceof Error ? error.message : "Failed to fetch daily stats";
+      const isValidation = error instanceof BucketQueryValidationError;
+      res.status(isValidation ? 400 : 500).json({
+        success: false,
+        error: message,
+        errorCode: isValidation ? "INVALID_QUERY" : "SERVER_ERROR",
+      });
+    }
+  });
+
   router.get("/search", validateSearchParams, async (req: Request, res: Response) => {
     try {
       const {

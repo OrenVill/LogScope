@@ -18,6 +18,9 @@ export interface ErrorResponse {
 
 export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
 
+export type NexvillEnv = "dev" | "preprod" | "prod";
+export type NexvillService = "nexvill-api" | "nexvill-worker";
+
 export interface SearchFilters {
   timeFrom?: string;
   timeTo?: string;
@@ -26,6 +29,30 @@ export interface SearchFilters {
   text?: string;
   requestId?: string;
   sessionId?: string;
+  env?: NexvillEnv;
+  service?: NexvillService;
+}
+
+export interface ArchiveDailyStats {
+  info: number;
+  warn: number;
+  error: number;
+  days: Array<{
+    date: string;
+    env: string;
+    svc: string;
+    info: number;
+    warn: number;
+    error: number;
+  }>;
+}
+
+export interface ArchiveConfig {
+  readOnly: boolean;
+  defaultEnv?: NexvillEnv;
+  defaultService?: NexvillService;
+  envs?: NexvillEnv[];
+  services?: NexvillService[];
 }
 
 export interface Pagination {

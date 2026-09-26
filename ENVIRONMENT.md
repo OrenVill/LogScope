@@ -85,7 +85,7 @@ When **`LOGS_S3_BUCKET`** is set, LogScope runs as a **read-only viewer** over t
 | **`LOGS_S3_ACCESS_KEY_ID`** / **`LOGS_S3_SECRET_ACCESS_KEY`** | (unset) | Optional static credentials; otherwise default AWS chain |
 | **`LOGS_S3_DEFAULT_ENV`** | `dev` | Default `env` query param (`dev`, `preprod`, `prod`) |
 | **`LOGS_S3_DEFAULT_SERVICE`** | `nexvill-api` | Default service (`nexvill-api`, `nexvill-worker`) |
-| **`LOGS_S3_INCLUDE_LANDING`** | `true` | Also read raw `landing/` objects for hours in the time range |
+| **`LOGS_S3_INCLUDE_LANDING`** | `true` | Also read raw `landing/` for hours with no `info/` or `durable/` compacted object |
 | **`LOGS_S3_MAX_HOURS`** | `168` | Max UTC hours scanned per search |
 
 Search accepts optional query params: `env`, `service` (or `svc`), plus existing `timeFrom`, `timeTo`, `level`, etc.
