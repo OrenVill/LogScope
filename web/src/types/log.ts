@@ -6,6 +6,12 @@ export interface LogSource {
   process: string;
   runtime: "node" | "browser";
   serviceName: string;
+  env?: string;
+  pod?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  origin?: "live" | "archive";
 }
 
 export interface Correlation {
@@ -40,6 +46,12 @@ export interface LogSummary {
   source: {
     runtime: "node" | "browser";
     serviceName: string;
+    env?: string;
+    pod?: string;
+    method?: string;
+    path?: string;
+    status?: number;
+    origin?: "live" | "archive";
   };
   /** Set by the server at query time. True if this log is pinned from auto-deletion. */
   starred?: boolean;

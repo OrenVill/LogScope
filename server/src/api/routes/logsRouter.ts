@@ -6,20 +6,40 @@ import { IQueryIndex } from "../../storage/index.js";
 import { IStarredStorage } from "../../storage/starredStorage.js";
 import { WsLogServer } from "../../ws/wsServer.js";
 import { rateLimitMiddleware, validateLogEntry, validateSearchParams } from "../middleware/validation.js";
+import { BucketQueryValidationError } from "../../archive/bucketQueryIndex.js";
+import type { ArchiveBucketConfig } from "../../archive/bucketConfig.js";
+import { isArchiveEnv, isArchiveService } from "../../archive/archiveMapper.js";
+
+export interface LogsRouterOptions {
+  /** S3 bucket read-only mode: disable ingest and mutations */
+  readOnlyArchive?: boolean;
+  bucketConfig?: ArchiveBucketConfig;
+}
 
 export const createLogsRouter = (
   storage: IFileStorage,
   queryIndex: IQueryIndex,
   wsServer?: WsLogServer,
-  starredStorage?: IStarredStorage
+  starredStorage?: IStarredStorage,
+  options?: LogsRouterOptions
 ) => {
   const router = Router();
+  const readOnly = options?.readOnlyArchive === true;
+  const bucketConfig = options?.bucketConfig;
+
+  const readOnlyResponse = (res: Response) =>
+    res.status(503).json({
+      success: false,
+      error: "LogScope is in read-only S3 archive mode; this action is disabled.",
+      errorCode: "READ_ONLY_ARCHIVE",
+    });
 
   /**
    * POST /api/logs/collect
    * Collect a log entry from frontend or backend
    */
   router.post("/collect", rateLimitMiddleware, validateLogEntry, async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const {
         timestamp,
@@ -48,6 +68,12 @@ export const createLogsRouter = (
           process: source.process || "unknown",
           runtime: source.runtime,
           serviceName: source.serviceName || "unknown",
+          ...(typeof source.env === "string" ? { env: source.env } : {}),
+          ...(typeof source.pod === "string" ? { pod: source.pod } : {}),
+          ...(typeof source.method === "string" ? { method: source.method } : {}),
+          ...(typeof source.path === "string" ? { path: source.path } : {}),
+          ...(typeof source.status === "number" ? { status: source.status } : {}),
+          ...(source.origin === "live" || source.origin === "archive" ? { origin: source.origin } : {}),
         },
         correlation: correlation || {},
       };
@@ -92,10 +118,31 @@ export const createLogsRouter = (
    *   - text: search in content (case-insensitive partial match)
    *   - requestId: correlation request ID
    *   - sessionId: correlation session ID
+   *   - path: HTTP path fragment (`/status`, `/api/…`)
+   *   - status: HTTP status (`200`, `500`)
+   *   - env / service: archive bucket scope when S3 mode is on
    *   - limit: number of results per page (default: 100, max: 1000)
    *   - offset: number of results to skip (default: 0)
    *   - lightweight: return summaries only (true/false, default: true)
    */
+  router.get("/archive-config", (_req: Request, res: Response) => {
+    if (!readOnly || !bucketConfig) {
+      return res.json({ success: true, data: { readOnly: false } });
+    }
+    res.json({
+      success: true,
+      data: {
+        readOnly: true,
+        bucket: bucketConfig.bucket,
+        region: bucketConfig.region,
+        defaultEnv: bucketConfig.defaultEnv,
+        defaultService: bucketConfig.defaultService,
+        envs: ["dev", "preprod", "prod"],
+        services: ["api", "worker"],
+      },
+    });
+  });
+
   router.get("/search", validateSearchParams, async (req: Request, res: Response) => {
     try {
       const {
@@ -106,10 +153,22 @@ export const createLogsRouter = (
         text,
         requestId,
         sessionId,
+        path,
+        status,
+        env,
+        service,
+        svc,
         limit = 100,
         offset = 0,
         lightweight = "true",
       } = req.query;
+
+      if (env && !isArchiveEnv(String(env))) {
+        throw new BucketQueryValidationError(`Invalid env "${env}"`);
+      }
+      if ((service || svc) && !isArchiveService(String(service || svc))) {
+        throw new BucketQueryValidationError(`Invalid service "${service || svc}"`);
+      }
 
       // Validate pagination parameters
       const parsedLimit = Math.min(parseInt(limit as string) || 100, 1000);
@@ -125,6 +184,10 @@ export const createLogsRouter = (
         text: text as string | undefined,
         requestId: requestId as string | undefined,
         sessionId: sessionId as string | undefined,
+        path: path as string | undefined,
+        status: status as string | undefined,
+        env: env as string | undefined,
+        service: ((service as string | undefined) || (svc as string | undefined)),
         limit: parsedLimit,
         offset: parsedOffset,
         lightweight: isLightweight,
@@ -144,10 +207,12 @@ export const createLogsRouter = (
       });
     } catch (error) {
       console.error("Error searching logs:", error);
-      res.status(500).json({
+      const message = error instanceof Error ? error.message : "Failed to search logs";
+      const isValidation = error instanceof BucketQueryValidationError;
+      res.status(isValidation ? 400 : 500).json({
         success: false,
-        error: "Failed to search logs",
-        errorCode: "SERVER_ERROR",
+        error: message,
+        errorCode: isValidation ? "INVALID_QUERY" : "SERVER_ERROR",
       });
     }
   });
@@ -158,6 +223,7 @@ export const createLogsRouter = (
    * Query param: keepStarred=true (default false) - keep pinned logs
    */
   router.delete("/all", async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const keepStarred = req.query.keepStarred === "true";
       const starredIds = keepStarred && starredStorage ? starredStorage.getAll() : undefined;
@@ -197,6 +263,7 @@ export const createLogsRouter = (
    * Pin a log entry so it is protected from automatic deletion
    */
   router.post("/:eventId/star", async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const { eventId } = req.params;
       if (!starredStorage) {
@@ -215,6 +282,7 @@ export const createLogsRouter = (
    * Unpin a log entry so it becomes eligible for automatic deletion again
    */
   router.delete("/:eventId/star", async (req: Request, res: Response) => {
+    if (readOnly) return readOnlyResponse(res);
     try {
       const { eventId } = req.params;
       if (!starredStorage) {
@@ -316,6 +384,36 @@ export const createLogsRouter = (
       res.status(500).json({
         success: false,
         error: "Failed to check health",
+        errorCode: "SERVER_ERROR",
+      });
+    }
+  });
+
+  /**
+   * GET /api/logs/around/:eventId?radius=10
+   * Logs before and after an event in time, ignoring search filters.
+   */
+  router.get("/around/:eventId", async (req: Request, res: Response) => {
+    try {
+      const radius = parseInt(req.query.radius as string) || 10;
+      const result = queryIndex.around(req.params.eventId, radius);
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          error: "Log not found",
+          errorCode: "NOT_FOUND",
+        });
+      }
+      res.json({
+        success: true,
+        data: result.logs,
+        focusIndex: result.focusIndex,
+      });
+    } catch (error) {
+      console.error("Error loading log context:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to load log context",
         errorCode: "SERVER_ERROR",
       });
     }

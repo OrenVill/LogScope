@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import { FilterPanel } from './components/FilterPanel'
-import { LogTable } from './components/LogTable'
+import { LogTable, type TraceTarget } from './components/LogTable'
+import { StatsPanel } from './components/StatsPanel'
+import { TracePanel } from './components/TracePanel'
+import { ContextPanel } from './components/ContextPanel'
 import { logsApi } from './api/logsService'
-import type { LogEntry, LogLevel, SearchFilters } from './types/api'
+import { acceptLiveLog, flushPending, newestWithLevel } from './lib/inspection'
+import type { LogEntry, LogLevel, SearchFilters, ArchiveConfig } from './types/api'
 
 interface ErrorState {
   message: string
@@ -25,7 +29,20 @@ function App() {
   })
   const [sortBy, setSortBy] = useState<'timestamp' | 'level'>('timestamp')
   const [runtime, setRuntime] = useState<'frontend' | 'backend' | 'all'>('all')
-  const [levelFilter] = useState<LogLevel | 'all'>('all')
+  const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
+  const [archiveConfig, setArchiveConfig] = useState<ArchiveConfig | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
+  const [followTick, setFollowTick] = useState(0)
+  const [focusEventId, setFocusEventId] = useState<string | null>(null)
+  const [focusNonce, setFocusNonce] = useState(0)
+  const [trace, setTrace] = useState<TraceTarget | null>(null)
+  const [contextEventId, setContextEventId] = useState<string | null>(null)
+  const [filterPreset, setFilterPreset] = useState<{ nonce: number; filters: SearchFilters } | null>(null)
+  const followingRef = useRef(true)
+  const expandHoldRef = useRef(false)
+  const pendingRef = useRef<LogEntry[]>([])
+  const stageRef = useRef<HTMLElement | null>(null)
+  const loadLogsRef = useRef<(filters?: SearchFilters, reset?: boolean) => Promise<void>>(async () => {})
   const [hasCritical, setHasCritical] = useState(false)
   const [hasNoIssues, setHasNoIssues] = useState(false)
   const [offset, setOffset] = useState(0)
@@ -96,12 +113,14 @@ function App() {
         if (response.success && response.total !== undefined) {
           const newTotal = response.total
           setTotalCount(prev => {
-            // If server total dropped significantly (cleanup happened), reset pagination
             if (newTotal < prev * 0.8) {
-              console.log(`[Sync] Cleanup detected: ${prev} → ${newTotal}. Resetting pagination.`)
+              console.log(`[Sync] Cleanup detected: ${prev} → ${newTotal}. Reloading logs.`)
               setOffset(0)
               offsetRef.current = 0
               setHasMore(newTotal > 0)
+              pendingRef.current = []
+              setPendingCount(0)
+              void loadLogsRef.current(currentFilters, true)
             }
             return newTotal
           })
@@ -181,6 +200,17 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    loadLogsRef.current = loadLogs
+  }, [loadLogs])
+
+  useEffect(() => {
+    void (async () => {
+      const cfg = await logsApi.getArchiveConfig()
+      if (cfg.success && cfg.data) setArchiveConfig(cfg.data)
+    })()
+  }, [])
+
   // Load initial page on mount
   useEffect(() => {
     loadLogs(undefined, true)
@@ -212,12 +242,62 @@ function App() {
     setHasNoIssues(!hasIssues && logs.length > 0)
   }, [logs])
 
-  // Filter logs by runtime and level
-  const filteredLogs = logs.filter(log => {
-    const runtimeMatch = runtime === 'all' || log.source.runtime === (runtime === 'backend' ? 'node' : 'browser')
-    const levelMatch = levelFilter === 'all' || log.level === levelFilter
-    return runtimeMatch && levelMatch
-  })
+  const runtimeLogs = logs.filter(log => runtime === 'all' || log.source.runtime === (runtime === 'backend' ? 'node' : 'browser'))
+  const filteredLogs = runtimeLogs.filter(log => levelFilter === 'all' || log.level === levelFilter)
+
+  const releasePending = useCallback(() => {
+    const pending = pendingRef.current
+    pendingRef.current = []
+    setPendingCount(0)
+    if (pending.length) setLogs(prev => flushPending(prev, pending))
+  }, [])
+
+  const handleFollowChange = useCallback((atBottom: boolean) => {
+    followingRef.current = atBottom
+    if (atBottom && !expandHoldRef.current) releasePending()
+  }, [releasePending])
+
+  const handleExpandedChange = useCallback((open: boolean) => {
+    expandHoldRef.current = open
+    if (!open && followingRef.current) releasePending()
+  }, [releasePending])
+
+  const resumeTail = () => {
+    followingRef.current = true
+    releasePending()
+    setFollowTick(tick => tick + 1)
+  }
+
+  const jumpToCritical = () => {
+    const newest = newestWithLevel(logs, 'critical')
+    setRuntime('all')
+    setLevelFilter('critical')
+    if (!newest) return
+    setFocusEventId(newest.eventId)
+    setFocusNonce(nonce => nonce + 1)
+  }
+
+  const focusSearch = () => {
+    setSidebarCollapsed(false)
+    requestAnimationFrame(() => document.getElementById('filter-text')?.focus())
+  }
+
+  const applyValueFilter = (filters: SearchFilters) => {
+    setRuntime('all')
+    setLevelFilter('all')
+    setSidebarCollapsed(false)
+    setFilterPreset({ nonce: Date.now(), filters })
+  }
+
+  const exportView = () => {
+    const blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'logscope-view.json'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Connect to WebSocket (stable identity to avoid re-creating handlers)
   const connectWebSocket = useCallback((filters?: { level?: string; subject?: string }) => {
@@ -237,14 +317,16 @@ function App() {
 
     wsRef.current = logsApi.connectWebSocket(
       (log: LogEntry) => {
-        setLogs((prev) => {
-          // remove any existing entry with same eventId then append the new one at the bottom
-          const filtered = prev.filter(p => p.eventId !== log.eventId)
-          return [...filtered, log]
-        })
-        // New log arrived: enable pagination again in case cleanup has removed old logs
+        const paused = !followingRef.current || expandHoldRef.current
+        if (paused) {
+          pendingRef.current = acceptLiveLog(true, [], pendingRef.current, log).pending
+          setLogs(prev => prev.filter(item => item.eventId !== log.eventId))
+          setPendingCount(pendingRef.current.length)
+        } else {
+          setLogs(prev => acceptLiveLog(false, prev, [], log).logs)
+          setFollowTick(tick => tick + 1)
+        }
         setHasMore(true)
-        // Increment total count (a new log was added server-side)
         setTotalCount(prev => prev + 1)
       },
       (error: Error) => {
@@ -386,13 +468,13 @@ function App() {
 
         <div className="topbar-status">
           {hasCritical && (
-            <div className="status-pill status-pill-critical" role="status">
+            <button type="button" className="status-pill status-pill-critical" onClick={jumpToCritical}>
               <span className="status-dot" aria-hidden="true" />
               <span>
                 <strong>Critical</strong>
-                <small>A critical event is in view</small>
+                <small>Jump to the newest critical event</small>
               </span>
-            </div>
+            </button>
           )}
           {hasNoIssues && (
             <div className="status-pill status-pill-ok" role="status">
@@ -468,11 +550,18 @@ function App() {
           {sidebarCollapsed ? (
             <div className="sidebar-collapsed-mark">Filters</div>
           ) : (
-            <FilterPanel onSearch={handleSearch} isRealTime={isRealTime} />
+            <FilterPanel
+              onSearch={handleSearch}
+              isRealTime={isRealTime}
+              preset={filterPreset}
+              showArchiveFilters={archiveConfig?.readOnly === true}
+              defaultEnv={archiveConfig?.defaultEnv}
+              defaultService={archiveConfig?.defaultService}
+            />
           )}
         </aside>
 
-        <main className="stage">
+        <main className="stage" ref={stageRef}>
           {error && (
             <div className={getErrorAlertClass()} role="alert">
               <div>
@@ -493,7 +582,14 @@ function App() {
               <button className={runtime === 'backend' ? 'is-active' : ''} onClick={() => setRuntime('backend')}>Backend</button>
               <button className={runtime === 'frontend' ? 'is-active' : ''} onClick={() => setRuntime('frontend')}>Frontend</button>
             </div>
-            <p className="pin-hint">Pin a log to keep it through cleanup.</p>
+            <p className="pin-hint">Pin a log to keep it through cleanup. Keys: / search, j k move, Enter open, s pin.</p>
+            <button
+              className="btn-ghost"
+              onClick={exportView}
+              title="Download the logs currently loaded in this view"
+            >
+              Export view
+            </button>
             <button
               className="btn-danger"
               onClick={() => setShowClearModal(true)}
@@ -536,6 +632,8 @@ function App() {
             </div>
           )}
 
+          <StatsPanel logs={runtimeLogs} onLevelFilter={setLevelFilter} currentLevel={levelFilter} />
+
           <LogTable
             logs={filteredLogs}
             loading={loading}
@@ -545,7 +643,32 @@ function App() {
             onSort={setSortBy}
             onLoadMore={loadMore}
             totalCount={totalCount}
+            focusEventId={focusEventId}
+            focusNonce={focusNonce}
+            followTick={followTick}
+            scrollRootRef={stageRef}
+            onFollowChange={handleFollowChange}
+            onExpandedChange={handleExpandedChange}
+            onOpenTrace={setTrace}
+            onOpenContext={setContextEventId}
+            onApplyFilter={applyValueFilter}
+            onFocusSearch={focusSearch}
           />
+
+          {pendingCount > 0 && (
+            <div className="tail-chip-wrap">
+              <button type="button" className="tail-chip" onClick={resumeTail}>
+                {pendingCount} new
+              </button>
+            </div>
+          )}
+
+          {trace && (
+            <TracePanel kind={trace.kind} id={trace.id} onClose={() => setTrace(null)} />
+          )}
+          {contextEventId && (
+            <ContextPanel eventId={contextEventId} onClose={() => setContextEventId(null)} />
+          )}
         </main>
       </div>
     </div>

@@ -201,6 +201,95 @@
   color: var(--ink);
 }
 
+button.subject-filter {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+button.subject-filter:hover {
+  color: var(--accent);
+}
+
+.row-action,
+.value-chip {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.row-action:hover,
+.value-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.in-view-count {
+  display: inline-flex;
+  margin-left: 8px;
+  color: var(--faint);
+  font-size: 0.72rem;
+}
+
+.id-actions,
+.value-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.value-filters {
+  margin-top: 8px;
+}
+
+.repeat-count {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+
+.log-table tbody tr.is-selected > td {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-solid));
+}
+
+.file-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-link,
+.id-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .message-preview {
   display: block;
   max-width: 460px;
@@ -222,6 +311,29 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.origin-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.origin-live {
+  color: #083344;
+  background: #a5f3fc;
+}
+
+.origin-archive {
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
 }
 
 .runtime-tag {

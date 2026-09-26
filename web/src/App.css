@@ -73,6 +73,13 @@
   border-radius: 999px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.04);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+button.status-pill {
+  cursor: pointer;
 }
 
 .status-pill strong {
@@ -433,6 +440,26 @@ html.is-resizing .sidebar {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
+}
+
+.tail-chip-wrap {
+  position: sticky;
+  bottom: 16px;
+  display: flex;
+  justify-content: center;
+  z-index: 4;
+  margin-top: 8px;
+}
+
+.tail-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
 }
 
 .spinner {

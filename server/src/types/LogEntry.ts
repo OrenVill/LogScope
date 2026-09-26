@@ -6,6 +6,15 @@ export interface LogSource {
   process: string;
   runtime: "node" | "browser";
   serviceName: string;
+  /** Deployment env: dev | preprod | prod */
+  env?: string;
+  /** Kubernetes pod name. Vector writes this on each landing line. */
+  pod?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  /** `live` is the open hour in landing/; `archive` is a compacted hour. */
+  origin?: "live" | "archive";
 }
 
 export interface Correlation {
@@ -38,5 +47,11 @@ export interface LogSummary {
   source: {
     runtime: "node" | "browser";
     serviceName: string;
+    env?: string;
+    pod?: string;
+    method?: string;
+    path?: string;
+    status?: number;
+    origin?: "live" | "archive";
   };
 }

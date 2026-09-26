@@ -1,4 +1,4 @@
-import type { LogEntry, ApiResponse, SearchFilters, Pagination } from "../types/api";
+import type { LogEntry, ApiResponse, SearchFilters, Pagination, ArchiveConfig } from "../types/api";
 
 /**
  * Retry configuration for failed requests
@@ -130,6 +130,10 @@ export class LogsApiClient {
     if (filters.text) params.append("text", filters.text);
     if (filters.requestId) params.append("requestId", filters.requestId);
     if (filters.sessionId) params.append("sessionId", filters.sessionId);
+    if (filters.path) params.append("path", filters.path);
+    if (filters.status) params.append("status", filters.status);
+    if (filters.env) params.append("env", filters.env);
+    if (filters.service) params.append("service", filters.service);
     if (pagination?.limit) params.append("limit", pagination.limit.toString());
     if (pagination?.offset) params.append("offset", pagination.offset.toString());
     params.append("lightweight", lightweight.toString());
@@ -157,9 +161,53 @@ export class LogsApiClient {
     }
   }
 
+  async getArchiveConfig(): Promise<ApiResponse<ArchiveConfig>> {
+    try {
+      const response = await fetchWithRetry(`${this.baseUrl}/api/logs/archive-config`);
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Failed to load archive config",
+          errorCode: data.errorCode || "HTTP_ERROR",
+        };
+      }
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+        errorCode: "NETWORK_ERROR",
+      };
+    }
+  }
+
   /**
    * Get a single log entry by ID
    */
+  async getLogContext(eventId: string, radius = 10): Promise<ApiResponse<LogEntry[]> & { focusIndex?: number }> {
+    try {
+      const response = await fetchWithRetry(
+        `${this.baseUrl}/api/logs/around/${encodeURIComponent(eventId)}?radius=${radius}`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Failed to load log context",
+          errorCode: data.errorCode || "HTTP_ERROR",
+        };
+      }
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+        errorCode: "NETWORK_ERROR",
+      };
+    }
+  }
+
   async getLogById(eventId: string): Promise<ApiResponse<LogEntry>> {
     try {
       const response = await fetchWithRetry(`${this.baseUrl}/api/logs/${eventId}`);
@@ -287,7 +335,7 @@ export class LogsApiClient {
   connectWebSocket(
     onMessage: (log: LogEntry) => void,
     onError?: (error: Error) => void,
-    filters?: { level?: string; subject?: string }
+    filters?: { level?: string; subject?: string; path?: string; status?: string; env?: string; service?: string }
   ): WebSocket | null {
     const maxReconnectAttempts = 5;
 

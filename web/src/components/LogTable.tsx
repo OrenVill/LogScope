@@ -1,9 +1,16 @@
 import React, { useMemo, useState } from "react";
 import type { LogEntry, LogLevel, LogSummary } from "../types/log";
 import { logsApi } from "../api/logsService";
+import { editorLink, groupConsecutive, isTypingTarget, logSignature, primitiveFields, relativeTime, signatureCounts } from "../lib/inspection";
+import type { SearchFilters } from "../types/api";
 import "./LogTable.css";
 
 type Log = LogEntry | LogSummary;
+
+export interface TraceTarget {
+  kind: "request" | "session";
+  id: string;
+}
 
 interface LogTableProps {
   logs: Log[];
@@ -14,6 +21,16 @@ interface LogTableProps {
   onSort: (sortBy: "timestamp" | "level") => void;
   onLoadMore?: () => void;
   totalCount?: number;
+  focusEventId?: string | null;
+  focusNonce?: number;
+  followTick?: number;
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
+  onFollowChange?: (following: boolean) => void;
+  onExpandedChange?: (expanded: boolean) => void;
+  onOpenTrace?: (target: TraceTarget) => void;
+  onOpenContext?: (eventId: string) => void;
+  onApplyFilter?: (filters: SearchFilters) => void;
+  onFocusSearch?: () => void;
 }
 
 /**
@@ -35,8 +52,20 @@ export const LogTable: React.FC<LogTableProps> = ({
   onSort,
   onLoadMore,
   totalCount = 0,
+  focusEventId = null,
+  focusNonce = 0,
+  followTick = 0,
+  scrollRootRef,
+  onFollowChange,
+  onExpandedChange,
+  onOpenTrace,
+  onOpenContext,
+  onApplyFilter,
+  onFocusSearch,
 }) => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [fullLogs, setFullLogs] = useState<Map<string, LogEntry>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
@@ -114,6 +143,7 @@ export const LogTable: React.FC<LogTableProps> = ({
   };
 
   const toggleExpanded = async (log: Log) => {
+    setSelectedId(log.eventId);
     const wasExpanded = expandedRows.has(log.eventId);
     const newExpanded = new Set(expandedRows);
 
@@ -191,6 +221,14 @@ export const LogTable: React.FC<LogTableProps> = ({
     return sorted;
   }, [logs, sortBy, sortOrder]);
 
+  const groups = useMemo(() => groupConsecutive(sortedLogs), [sortedLogs]);
+  const matchCounts = useMemo(() => signatureCounts(sortedLogs), [sortedLogs]);
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const toggleSort = (column: "timestamp" | "level") => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "desc" ? "asc" : "desc");
@@ -207,6 +245,94 @@ export const LogTable: React.FC<LogTableProps> = ({
       day: date.toLocaleDateString([], { month: "short", day: "numeric" }),
     };
   };
+
+  const actionRef = React.useRef({ toggleExpanded, toggleStar });
+  actionRef.current = { toggleExpanded, toggleStar };
+  const expandedRef = React.useRef(expandedRows);
+  expandedRef.current = expandedRows;
+  const groupsRef = React.useRef(groups);
+  groupsRef.current = groups;
+  const selectedRef = React.useRef(selectedId);
+  selectedRef.current = selectedId;
+  const programmaticScroll = React.useRef(false);
+
+  React.useEffect(() => {
+    onExpandedChange?.(expandedRows.size > 0);
+  }, [expandedRows, onExpandedChange]);
+
+  const logsRef = React.useRef(logs);
+  logsRef.current = logs;
+
+  React.useEffect(() => {
+    if (!focusNonce || !focusEventId) return;
+    const log = logsRef.current.find((item) => item.eventId === focusEventId);
+    setSelectedId(focusEventId);
+    if (log && !expandedRef.current.has(focusEventId)) {
+      void actionRef.current.toggleExpanded(log);
+    }
+    const frame = requestAnimationFrame(() => {
+      document.querySelector(`[data-event-id="${focusEventId}"]`)?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusNonce, focusEventId]);
+
+  React.useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        onFocusSearch?.();
+        return;
+      }
+      const visible = groupsRef.current;
+      if (!visible.length) return;
+      const current = selectedRef.current;
+      const index = visible.findIndex((group) => group.log.eventId === current);
+      if (event.key === "j" || event.key === "k") {
+        event.preventDefault();
+        const nextIndex = event.key === "j"
+          ? Math.min(visible.length - 1, (index === -1 ? -1 : index) + 1)
+          : Math.max(0, index === -1 ? 0 : index - 1);
+        const id = visible[nextIndex].log.eventId;
+        setSelectedId(id);
+        document.querySelector(`[data-event-id="${id}"]`)?.scrollIntoView({ block: "nearest" });
+      } else if (event.key === "Enter" && current) {
+        event.preventDefault();
+        const group = visible.find((item) => item.log.eventId === current);
+        if (group) void actionRef.current.toggleExpanded(group.log);
+      } else if ((event.key === "s" || event.key === "S") && current && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        const group = visible.find((item) => item.log.eventId === current);
+        if (group) void actionRef.current.toggleStar({ stopPropagation() {} } as React.MouseEvent, group.log);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onFocusSearch]);
+
+  React.useEffect(() => {
+    const root = scrollRootRef?.current;
+    if (!root || !onFollowChange) return;
+    const onScroll = () => {
+      if (programmaticScroll.current) return;
+      const atBottom = root.scrollHeight - root.scrollTop - root.clientHeight < 48;
+      onFollowChange(atBottom);
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [scrollRootRef, onFollowChange]);
+
+  React.useEffect(() => {
+    const root = scrollRootRef?.current;
+    if (!root || !followTick) return;
+    programmaticScroll.current = true;
+    root.scrollTop = root.scrollHeight;
+    const timer = window.setTimeout(() => {
+      programmaticScroll.current = false;
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [followTick, scrollRootRef]);
 
   if (loading) {
     return (
@@ -271,14 +397,17 @@ export const LogTable: React.FC<LogTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {sortedLogs.map((log: Log) => {
+            {groups.map((group) => {
+              const log = group.log;
               const stamp = formatStamp(log.timestamp);
               const expanded = expandedRows.has(log.eventId);
               return (
               <React.Fragment key={log.eventId}>
                 <tr
+                  data-event-id={log.eventId}
                   title={`ID: ${log.eventId}`}
-                  className={`log-row-${log.level}`}
+                  className={`log-row-${log.level}${selectedId === log.eventId ? " is-selected" : ""}`}
+                  onClick={() => setSelectedId(log.eventId)}
                 >
                   <td>
                     <button
@@ -311,13 +440,40 @@ export const LogTable: React.FC<LogTableProps> = ({
                     </span>
                   </td>
                   <td>
-                    <span className="ts">
-                      {stamp.time}
-                      <small>{stamp.day}</small>
+                    <span className="ts" title={new Date(log.timestamp).toLocaleString()}>
+                      {relativeTime(log.timestamp, now)}
+                      <small>{stamp.day} {stamp.time}</small>
                     </span>
+                    <button
+                      type="button"
+                      className="row-action"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenContext?.(log.eventId);
+                      }}
+                    >
+                      Context
+                    </button>
                   </td>
                   <td>
-                    <span className="subject-name">{log.subject}</span>
+                    <button
+                      type="button"
+                      className="subject-name subject-filter"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onApplyFilter?.({ subject: log.subject });
+                      }}
+                    >
+                      {log.subject}
+                    </button>
+                    {group.count > 1 && (
+                      <span className="repeat-count" title={`${group.count} identical events in a row`}>×{group.count}</span>
+                    )}
+                    {(matchCounts.get(logSignature(log)) ?? 1) > group.count && (
+                      <span className="in-view-count" title="Matching events in this view, including ones that are not adjacent">
+                        {matchCounts.get(logSignature(log))} in view
+                      </span>
+                    )}
                   </td>
                   <td>
                     <span className="message-preview" title={log.message || undefined}>
@@ -326,6 +482,14 @@ export const LogTable: React.FC<LogTableProps> = ({
                   </td>
                   <td>
                     <span className="source-cell">
+                      {log.source.origin && (
+                        <span
+                          className={`origin-tag origin-${log.source.origin}`}
+                          title={log.source.origin === "live" ? "Open hour, read from landing/" : "Compacted hour"}
+                        >
+                          {log.source.origin === "live" ? "live" : "archive"}
+                        </span>
+                      )}
                       <span className={`runtime-tag runtime-${log.source.runtime}`}>
                         {log.source.runtime === "node" ? "Backend" : "Frontend"}
                       </span>
@@ -365,6 +529,20 @@ export const LogTable: React.FC<LogTableProps> = ({
                                       </button>
                                     </div>
                                     <pre className="log-content-display">{formatContent(displayLog.data)}</pre>
+                                    {primitiveFields(displayLog.data).length > 0 && (
+                                      <div className="value-filters">
+                                        {primitiveFields(displayLog.data).map((field) => (
+                                          <button
+                                            key={field.key}
+                                            type="button"
+                                            className="value-chip"
+                                            onClick={() => onApplyFilter?.({ text: field.value })}
+                                          >
+                                            {field.key}: {field.value}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 ) : null}
 
@@ -372,26 +550,96 @@ export const LogTable: React.FC<LogTableProps> = ({
                                   <div className="detail-grid">
                                     <div>
                                       <h3>Source</h3>
-                                      <div className="log-metadata">
-                                        <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
-                                        <div><strong>File:</strong> <code>{displayLog.source.file}</code></div>
-                                        <div><strong>Process:</strong> <code>{displayLog.source.process}</code></div>
-                                        <div><strong>Runtime:</strong> <span>{displayLog.source.runtime === "node" ? "Node.js" : "Browser"}</span></div>
-                                        <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
-                                      </div>
+                                      {displayLog.source.origin ? (
+                                        <div className="log-metadata">
+                                          <div>
+                                            <strong>Origin:</strong>{" "}
+                                            <span className={`origin-tag origin-${displayLog.source.origin}`}>
+                                              {displayLog.source.origin === "live" ? "live · landing/" : "archive"}
+                                            </span>
+                                          </div>
+                                          {displayLog.source.env && (
+                                            <div><strong>Env:</strong> <span>{displayLog.source.env}</span></div>
+                                          )}
+                                          <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
+                                          {displayLog.source.pod && (
+                                            <div><strong>Pod:</strong> <code>{displayLog.source.pod}</code></div>
+                                          )}
+                                          {displayLog.source.method && (
+                                            <div><strong>Method:</strong> <code>{displayLog.source.method}</code></div>
+                                          )}
+                                          {displayLog.source.path && (
+                                            <div>
+                                              <strong>Path:</strong>{" "}
+                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ path: displayLog.source.path })}>
+                                                {displayLog.source.path}
+                                              </button>
+                                            </div>
+                                          )}
+                                          {displayLog.source.status !== undefined && (
+                                            <div>
+                                              <strong>HTTP status:</strong>{" "}
+                                              <button type="button" className="id-link" onClick={() => onApplyFilter?.({ status: String(displayLog.source.status) })}>
+                                                {displayLog.source.status}
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="log-metadata">
+                                          <div><strong>Function:</strong> <code>{displayLog.source.function}</code></div>
+                                          <div>
+                                            <strong>File:</strong>
+                                            <span className="file-value">
+                                              <code>{displayLog.source.file}</code>
+                                              {editorLink(displayLog.source.file) && (
+                                                <a className="editor-link" href={editorLink(displayLog.source.file) ?? undefined}>Open in editor</a>
+                                              )}
+                                            </span>
+                                          </div>
+                                          <div><strong>Process:</strong> <code>{displayLog.source.process}</code></div>
+                                          <div><strong>Runtime:</strong> <span>{displayLog.source.runtime === "node" ? "Node.js" : "Browser"}</span></div>
+                                          <div><strong>Service:</strong> <span>{displayLog.source.serviceName}</span></div>
+                                        </div>
+                                      )}
                                     </div>
 
                                     <div>
                                       <h3>Correlation</h3>
                                       <div className="log-metadata">
                                         {displayLog.correlation.requestId && (
-                                          <div><strong>Request ID:</strong> <code>{displayLog.correlation.requestId}</code></div>
+                                          <div>
+                                            <strong>Request ID:</strong>
+                                            <span className="id-actions">
+                                              <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "request", id: displayLog.correlation.requestId! })}>
+                                                {displayLog.correlation.requestId}
+                                              </button>
+                                              <button type="button" className="row-action" onClick={() => onApplyFilter?.({ requestId: displayLog.correlation.requestId })}>
+                                                Filter
+                                              </button>
+                                            </span>
+                                          </div>
                                         )}
                                         {displayLog.correlation.sessionId && (
-                                          <div><strong>Session ID:</strong> <code>{displayLog.correlation.sessionId}</code></div>
+                                          <div>
+                                            <strong>Session ID:</strong>
+                                            <span className="id-actions">
+                                              <button type="button" className="id-link" onClick={() => onOpenTrace?.({ kind: "session", id: displayLog.correlation.sessionId! })}>
+                                                {displayLog.correlation.sessionId}
+                                              </button>
+                                              <button type="button" className="row-action" onClick={() => onApplyFilter?.({ sessionId: displayLog.correlation.sessionId })}>
+                                                Filter
+                                              </button>
+                                            </span>
+                                          </div>
                                         )}
                                         {displayLog.correlation.userId && (
-                                          <div><strong>User ID:</strong> <code>{displayLog.correlation.userId}</code></div>
+                                          <div>
+                                            <strong>User ID:</strong>
+                                            <button type="button" className="id-link" onClick={() => onApplyFilter?.({ text: displayLog.correlation.userId })}>
+                                              {displayLog.correlation.userId}
+                                            </button>
+                                          </div>
                                         )}
                                         {!displayLog.correlation.requestId && !displayLog.correlation.sessionId && !displayLog.correlation.userId && (
                                           <div>No correlation data</div>

@@ -42,4 +42,37 @@ describe('QueryIndex filters', () => {
     const pag = await idx.query({ offset: 1, limit: 1 })
     expect(pag.logs.length).toBe(1)
   })
+
+  it('matches correlation user ids in text search and returns surrounding logs', async () => {
+    const idx = createQueryIndex(100)
+    const logs = [
+      make('early', 'info', 'a', 'one', '2026-01-01T00:00:00Z'),
+      make('mid', 'warn', 'b', 'two', '2026-01-01T00:00:02Z'),
+      make('late', 'error', 'c', 'three', '2026-01-01T00:00:09Z'),
+    ]
+    logs[1].correlation = { userId: 'ada' }
+    await idx.buildIndex(logs)
+
+    const byUser = await idx.query({ text: 'ada', limit: 10 })
+    expect(byUser.logs.map((log) => log.eventId)).toEqual(['mid'])
+
+    const around = idx.around('late', 1)
+    expect(around?.focusIndex).toBe(1)
+    expect(around?.logs.map((log) => log.eventId)).toEqual(['mid', 'late'])
+  })
+
+  it('filters by HTTP path and status', async () => {
+    const idx = createQueryIndex(100)
+    const status = make('status', 'info', 'GET /api/auth/status 200', 'ok')
+    status.source = { ...status.source, path: '/api/auth/status', status: 200, method: 'GET' }
+    const failed = make('failed', 'error', 'POST /api/chat-stream 500', 'boom')
+    failed.source = { ...failed.source, path: '/api/chat-stream', status: 500, method: 'POST' }
+    await idx.buildIndex([status, failed])
+
+    const byPath = await idx.query({ path: '/status', limit: 10 })
+    expect(byPath.logs.map((log) => log.eventId)).toEqual(['status'])
+
+    const byStatus = await idx.query({ status: '500', limit: 10 })
+    expect(byStatus.logs.map((log) => log.eventId)).toEqual(['failed'])
+  })
 })
